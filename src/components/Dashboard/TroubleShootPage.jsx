@@ -1,8 +1,9 @@
 "use client"
-import { useState } from "react"
+import { useState, useEffect, useCallback, useRef } from "react"
 import { motion } from "framer-motion"
-import { MessageCircle, Mail, BarChart3, AlertTriangle, Search, ChevronRight } from "lucide-react"
+import { MessageCircle, Mail, BarChart3, AlertTriangle, Search, ChevronRight, X, Sparkles, Send, User, Bot, Loader2 } from "lucide-react"
 import Button from "../ui/Button"
+import ChatAssistant from "./ChatAssistant"
 
 const troubleshootCategories = [
   {
@@ -115,7 +116,7 @@ const commonSolutions = [
   {
     title: "Clear Browser Cache",
     description: "Clear browser cache and cookies to resolve display issues",
-    steps: ["Open browser settings", " to Privacy/Security", "Clear browsing data", "Restart browser"],
+    steps: ["Open browser settings", "Go to Privacy/Security", "Clear browsing data", "Restart browser"],
   },
   {
     title: "Check Network Connection",
@@ -138,6 +139,8 @@ export default function TroubleShootPage() {
   const [selectedCategory, setSelectedCategory] = useState(null)
   const [searchTerm, setSearchTerm] = useState("")
   const [expandedIssue, setExpandedIssue] = useState(null)
+  
+  // Remove all chat-related states as they're now in ChatAssistant
 
   const filteredCategories = troubleshootCategories.filter(
     (category) =>
@@ -311,7 +314,8 @@ export default function TroubleShootPage() {
         </div>
       </div>
 
-
+      {/* Use the reusable ChatAssistant component */}
+      <ChatAssistant />
     </div>
   )
 }

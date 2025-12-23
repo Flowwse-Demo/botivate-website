@@ -25,14 +25,31 @@ function App() {
   const [isLoading, setIsLoading] = useState(true)
   const [isLoginOpen, setIsLoginOpen] = useState(false)
 
+  // Cookie utility functions
+const deleteCookie = (name) => {
+  document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 UTC;path=/;`;
+};
+
+const getCookie = (name) => {
+  const nameEQ = name + "=";
+  const ca = document.cookie.split(';');
+  for (let i = 0; i < ca.length; i++) {
+    let c = ca[i];
+    while (c.charAt(0) === ' ') c = c.substring(1, c.length);
+    if (c.indexOf(nameEQ) === 0) return c.substring(nameEQ.length, c.length);
+  }
+  return null;
+};
+
  useEffect(() => {
   const verifyUserSession = async () => {
     try {
-      const storedSession = sessionStorage.getItem('userSession');
+      // const storedSession = sessionStorage.getItem('userSession');
+      const storedSession = getCookie('userSession');
       
       if (storedSession) {
         const userData = JSON.parse(storedSession);
-        console.log('🔄 Restoring active user session:', userData);
+        // console.log('🔄 Restoring active user session:', userData);
 
         setUser({
           type: userData.role,
@@ -54,10 +71,10 @@ function App() {
       const currentTime = Date.now();
       
       if (!sessionStartTime) {
-        console.log('🆕 Fresh URL entry detected');
+        // console.log('🆕 Fresh URL entry detected');
         const storedUser = localStorage.getItem('userData');
         if (storedUser) {
-          console.log('🔍 Found previous login data - clearing for fresh start');
+          // console.log('🔍 Found previous login data - clearing for fresh start');
           sessionStorage.clear();
         }
 
@@ -69,7 +86,7 @@ function App() {
         setUserFilterData(null);
         setCompanyData(null);
       } else {
-        console.log('🔄 Page refresh within session - no active login found');
+        // console.log('🔄 Page refresh within session - no active login found');
         setCurrentPage("home");
         setUser(null);
         setUserFilterData(null);
@@ -77,7 +94,7 @@ function App() {
       }
       
     } catch (error) {
-      console.error('❌ Error verifying session:', error);
+      // console.error('❌ Error verifying session:', error);
       localStorage.removeItem('userData');
       sessionStorage.clear();
       setCurrentPage("home");
@@ -117,9 +134,9 @@ function App() {
   }
 
  const handleLogin = (role, username, pagination, filterData, companyInfo = null) => {
-  console.log('🎉 Login successful for:', username, 'Role:', role);
-  console.log('📊 Filter data received:', filterData);
-  console.log('🏢 Company data received:', companyInfo);
+  // console.log('🎉 Login successful for:', username, 'Role:', role);
+  // console.log('📊 Filter data received:', filterData);
+  // console.log('🏢 Company data received:', companyInfo);
   
   // Handle pagination whether it's a string or object
   let paginationValue = pagination;
@@ -161,24 +178,42 @@ function App() {
   sessionStorage.setItem('currentPage', 'dashboard')
   localStorage.setItem('userData', JSON.stringify(userData))
   
-  console.log('✅ Session data stored:', sessionData);
+  // console.log('✅ Session data stored:', sessionData);
 }
 
+  // const handleLogout = () => {
+  //   // console.log('👋 User logging out');
+  //   setUser(null)
+  //   setUserFilterData(null)
+  //   setCompanyData(null)
+  //   setCurrentPage("home")
+    
+  //   // Clear all stored data on logout
+  //   sessionStorage.clear() // This will remove sessionStartTime too
+  //   localStorage.removeItem("userData")
+    
+  //   // Set fresh session after logout
+  //   sessionStorage.setItem('sessionStartTime', Date.now().toString());
+  //   sessionStorage.setItem('currentPage', 'home');
+  // }
+
   const handleLogout = () => {
-    console.log('👋 User logging out');
-    setUser(null)
-    setUserFilterData(null)
-    setCompanyData(null)
-    setCurrentPage("home")
-    
-    // Clear all stored data on logout
-    sessionStorage.clear() // This will remove sessionStartTime too
-    localStorage.removeItem("userData")
-    
-    // Set fresh session after logout
-    sessionStorage.setItem('sessionStartTime', Date.now().toString());
-    sessionStorage.setItem('currentPage', 'home');
-  }
+  // console.log('👋 User logging out');
+  setUser(null)
+  setUserFilterData(null)
+  setCompanyData(null)
+  setCurrentPage("home")
+  
+  // Clear cookies instead of sessionStorage
+  deleteCookie('userSession')
+  deleteCookie('currentPage')
+  sessionStorage.clear()
+  localStorage.removeItem("userData")
+  
+  // Set fresh session after logout
+  sessionStorage.setItem('sessionStartTime', Date.now().toString());
+  sessionStorage.setItem('currentPage', 'home');
+}
 
   const handleOpenLogin = () => {
     setIsLoginOpen(true)

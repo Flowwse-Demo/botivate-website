@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Menu, Users, LogOut, Search } from 'lucide-react';
 import Sidebar from '../Dashboard/Sidebar';
 import AdminDashboard from '../Dashboard/AdminDashboard';
+import ChatAssistant from '../../components/Dashboard/ChatAssistant'; // Import the chat assistant
 
 const Header = ({ children, user, onLogout }) => {
     const [currentTime, setCurrentTime] = useState(new Date());
@@ -75,9 +76,6 @@ const Header = ({ children, user, onLogout }) => {
 
                     {/* Right section */}
                     <div className="flex items-center space-x-2 sm:space-x-4 flex-shrink-0">
-                        {/* Search - hidden on mobile, compact on tablet, full on desktop */}
-                       
-
                         {/* Mobile search button */}
                         <button className="md:hidden p-2 rounded-lg bg-gray-100 hover:bg-gray-200 transition-colors">
                             <Search className="w-4 h-4 text-gray-500" />
@@ -109,20 +107,11 @@ const Layout = ({ user, userFilterData, companyData, onLogout }) => {
         sessionStorage.setItem("activeTab", activeTab);
     }, [activeTab]);
 
-    // Add useEffect to log received props for debugging
-    React.useEffect(() => {
-        console.log('🏗️ Layout component received:');
-        console.log('👤 User:', user);
-        console.log('📊 UserFilterData:', userFilterData);
-        console.log('🏢 CompanyData:', companyData);
-    }, [user, userFilterData, companyData]);
-
-    // Define the missing functions that were referenced but not defined
     const closeMobileSidebar = () => {
         setSidebarOpen(false);
     };
 
-    const isMobile = window.innerWidth < 1024; // Simple mobile detection
+    const isMobile = window.innerWidth < 1024;
 
     return (
         <div className="flex h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
@@ -144,7 +133,7 @@ const Layout = ({ user, userFilterData, companyData, onLogout }) => {
                     setActiveTab={setActiveTab}
                     onClose={closeMobileSidebar}
                     isMobile={isMobile}
-                    user={user} // User prop properly passed
+                    user={user}
                 />
             </div>
 
@@ -170,9 +159,9 @@ const Layout = ({ user, userFilterData, companyData, onLogout }) => {
                             pagination={user?.pagination}
                             activeTab={activeTab}
                             setActiveTab={setActiveTab}
-                            user={user} // Pass user to AdminDashboard
-                            userFilterData={userFilterData} // Pass userFilterData to AdminDashboard
-                            companyData={companyData} // Pass companyData to AdminDashboard
+                            user={user}
+                            userFilterData={userFilterData}
+                            companyData={companyData}
                         />
                     </div>
                 </main>
@@ -192,6 +181,9 @@ const Layout = ({ user, userFilterData, companyData, onLogout }) => {
                     </div>
                 </footer>
             </div>
+
+            {/* Global Chat Assistant - Available on all pages */}
+            <ChatAssistant />
         </div>
     );
 };

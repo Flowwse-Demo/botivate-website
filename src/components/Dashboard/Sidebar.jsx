@@ -1,4 +1,3 @@
-
 "use client"
 
 import { motion } from "framer-motion"
@@ -14,7 +13,9 @@ import {
   Code,
   Building2,
   User,
-  Shield
+  Shield,
+  Bot, // Add this import
+  Sparkles // Add this import
 } from "lucide-react"
 
 const Sidebar = ({ activeTab, setActiveTab, onClose, isMobile }) => {
@@ -36,7 +37,9 @@ const Sidebar = ({ activeTab, setActiveTab, onClose, isMobile }) => {
       "pending-tasks": "Pending Tasks",
       "completed-tasks": "Completed Tasks",
       "troubleshoot": "Troubleshoot",
-      "systems": "All Systems List"
+      "systems": "All Systems List",
+      "ai-helper": "AI System Consultant", // Add this
+      "reports": "Reports"
     }
 
     return defaultLabels[tabId] || "Unknown"
@@ -51,7 +54,9 @@ const Sidebar = ({ activeTab, setActiveTab, onClose, isMobile }) => {
     { id: "pending-tasks", label: getTabLabel("pending-tasks", userRole), icon: Clock, key: "pending-tasks" },
     { id: "completed-tasks", label: getTabLabel("completed-tasks", userRole), icon: CheckCircle, key: "completed-tasks" },
     { id: "systems", label: getTabLabel("systems", userRole), icon: Activity, key: "systems" },
-     { id: "troubleshoot", label: getTabLabel("troubleshoot", userRole), icon: Settings, key: "troubleshoot" },
+    { id: "troubleshoot", label: getTabLabel("troubleshoot", userRole), icon: Settings, key: "troubleshoot" },
+    { id: "ai-helper", label: getTabLabel("ai-helper", userRole), icon: Bot, key: "ai-helper" }, // Add this
+    {id: "reports", label: getTabLabel("reports", userRole), icon: BarChart3, key: "reports" }
   ]
 
   useEffect(() => {
@@ -63,7 +68,7 @@ const Sidebar = ({ activeTab, setActiveTab, onClose, isMobile }) => {
     if (storedSession) {
       try {
         userData = JSON.parse(storedSession)
-        console.log("🔍 Found session data:", userData)
+        // console.log("🔍 Found session data:", userData)
       } catch (e) {
         console.error("❌ Error parsing session data:", e)
       }
@@ -81,43 +86,43 @@ const Sidebar = ({ activeTab, setActiveTab, onClose, isMobile }) => {
       }
     }
 
-    console.log("📋 Final user data:", userData)
+    // console.log("📋 Final user data:", userData)
     setUserInfo(userData)
 
     if (userData) {
       // Handle different user types
       if (userData.role === "admin" || userData.type === "admin") {
-        console.log("👑 User is admin - showing all tabs")
+        // console.log("👑 User is admin - showing all tabs")
         setUserPermissions(["all"])
       } else if (userData.role === "company") {
-        console.log("🏢 User is company - using paginationnew")
+        // console.log("🏢 User is company - using paginationnew")
         handleCompanyPermissions(userData)
       } else if (userData.role === "user" || userData.type === "user") {
-        console.log("👤 User is regular user - using pagination")
+        // console.log("👤 User is regular user - using pagination")
         handleUserPermissions(userData)
       } else {
-        console.log("⚠️ Unknown user type - showing default")
+        // console.log("⚠️ Unknown user type - showing default")
         setUserPermissions(["dashboard"])
       }
     } else {
-      console.log("❌ No user data found - showing default")
+      // console.log("❌ No user data found - showing default")
       setUserPermissions(["dashboard"])
     }
   }, [])
 
   // Handle company permissions using paginationnew from Column E
 const handleCompanyPermissions = (userData) => {
-  console.log("🔧 Processing company permissions...")
+  // console.log("🔧 Processing company permissions...")
 
   const paginationNew = userData.companyData?.paginationNew;
   const pagination = userData.pagination;
 
   if (paginationNew) {
-    console.log("📄 Company paginationNew:", paginationNew);
+    // console.log("📄 Company paginationNew:", paginationNew);
 
     if (typeof paginationNew === "string") {
       if (paginationNew.toLowerCase() === "all") {
-        console.log("✅ Company has access to all pages");
+        // console.log("✅ Company has access to all pages");
         setUserPermissions(["all"]);
       } else {
         const permissions = paginationNew
@@ -125,19 +130,19 @@ const handleCompanyPermissions = (userData) => {
           .map(perm => perm.trim().toLowerCase())
           .filter(perm => perm.length > 0);
 
-        console.log("🔑 Company parsed permissions (string):", permissions);
+        // console.log("🔑 Company parsed permissions (string):", permissions);
         setUserPermissions(permissions);
       }
     } else if (Array.isArray(paginationNew)) {
       const permissions = paginationNew.map(perm => perm.toLowerCase());
-      console.log("🔑 Company parsed permissions (array):", permissions);
+      // console.log("🔑 Company parsed permissions (array):", permissions);
       setUserPermissions(permissions);
     } else {
       console.warn("⚠️ Unexpected paginationNew format:", paginationNew);
       setUserPermissions(["dashboard"]);
     }
   } else if (pagination) {
-    console.log("⚠️ Using fallback pagination for company:", pagination);
+    // console.log("⚠️ Using fallback pagination for company:", pagination);
 
     if (typeof pagination === "string") {
       if (pagination.toLowerCase() === "all") {
@@ -148,19 +153,19 @@ const handleCompanyPermissions = (userData) => {
           .map(perm => perm.trim().toLowerCase())
           .filter(perm => perm.length > 0);
 
-        console.log("🔑 Company fallback permissions (string):", permissions);
+        // console.log("🔑 Company fallback permissions (string):", permissions);
         setUserPermissions(permissions);
       }
     } else if (Array.isArray(pagination)) {
       const permissions = pagination.map(perm => perm.toLowerCase());
-      console.log("🔑 Company fallback permissions (array):", permissions);
+      // console.log("🔑 Company fallback permissions (array):", permissions);
       setUserPermissions(permissions);
     } else {
       console.warn("⚠️ Unexpected pagination format:", pagination);
       setUserPermissions(["dashboard"]);
     }
   } else {
-    console.log("❌ No pagination data found for company - showing dashboard only");
+    // console.log("❌ No pagination data found for company - showing dashboard only");
     setUserPermissions(["dashboard"]);
   }
 };
@@ -168,17 +173,17 @@ const handleCompanyPermissions = (userData) => {
 
   // Handle user permissions using existing pagination logic
  const handleUserPermissions = (userData) => {
-  console.log("🔧 Processing user permissions...")
+  // console.log("🔧 Processing user permissions...")
 
   const pagination = userData.pagination;
 
   if (pagination) {
-    console.log("📄 User pagination:", pagination);
+    // console.log("📄 User pagination:", pagination);
 
     if (typeof pagination === "string") {
       // case: string like "all" or "pending-tasks,completed-tasks"
       if (pagination.toLowerCase() === "all") {
-        console.log("✅ User has access to all pages");
+        // console.log("✅ User has access to all pages");
         setUserPermissions(["all"]);
       } else {
         const permissions = pagination
@@ -186,20 +191,20 @@ const handleCompanyPermissions = (userData) => {
           .map(perm => perm.trim().toLowerCase())
           .filter(perm => perm.length > 0);
 
-        console.log("🔑 User parsed permissions:", permissions);
+        // console.log("🔑 User parsed permissions:", permissions);
         setUserPermissions(permissions);
       }
     } else if (Array.isArray(pagination)) {
       // case: already an array
       const permissions = pagination.map(perm => perm.toLowerCase());
-      console.log("🔑 User array permissions:", permissions);
+      // console.log("🔑 User array permissions:", permissions);
       setUserPermissions(permissions);
     } else {
       console.warn("⚠️ Unexpected pagination format:", pagination);
       setUserPermissions(["dashboard"]);
     }
   } else {
-    console.log("❌ No pagination found for user - showing default");
+    // console.log("❌ No pagination found for user - showing default");
     setUserPermissions(["dashboard"]);
   }
 };
@@ -210,13 +215,18 @@ const handleCompanyPermissions = (userData) => {
     const allTabs = getAllTabs(userInfo?.role) // Get tabs with dynamic labels
 
     if (userPermissions.includes("all")) {
-      console.log("🌟 Showing all tabs")
+      // console.log("🌟 Showing all tabs")
       return allTabs
     }
 
     const visibleTabs = allTabs.filter(tab => {
       // Always show dashboard
       if (tab.id === "overview" || tab.key === "dashboard") {
+        return true
+      }
+
+      // Always show AI Helper for company and admin (even if not in permissions)
+      if (tab.id === "ai-helper" && (userInfo?.role === "company" || userInfo?.role === "admin")) {
         return true
       }
 
@@ -232,14 +242,14 @@ const handleCompanyPermissions = (userData) => {
           tabKeyLower.includes(permLower)
 
         if (hasPermission) {
-          console.log(`✅ Permission "${permission}" matches tab "${tab.label}"`)
+          // console.log(`✅ Permission "${permission}" matches tab "${tab.label}"`)
         }
 
         return hasPermission
       })
     })
 
-    console.log("👁️ Visible tabs:", visibleTabs.map(t => t.label))
+    // console.log("👁️ Visible tabs:", visibleTabs.map(t => t.label))
     return visibleTabs.length > 0 ? visibleTabs : [allTabs[0]] // At least show dashboard
   }
 
@@ -324,7 +334,7 @@ const handleCompanyPermissions = (userData) => {
             <motion.button
               key={tab.id}
               onClick={() => {
-                console.log("🖱️ Tab clicked:", tab.label)
+                // console.log("🖱️ Tab clicked:", tab.label)
                 setActiveTab(tab.id);
                 if (isMobile && onClose) {
                   onClose();
@@ -345,6 +355,13 @@ const handleCompanyPermissions = (userData) => {
                   animate={{ scale: 1 }}
                   className="ml-auto w-2 h-2 bg-white rounded-full"
                 />
+              )}
+              
+              {/* Special badge for AI Helper */}
+              {tab.id === "ai-helper" && (
+                <span className="ml-auto">
+                  <Sparkles className="w-4 h-4 text-yellow-500" />
+                </span>
               )}
             </motion.button>
           ))}

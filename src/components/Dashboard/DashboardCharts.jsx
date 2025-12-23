@@ -361,7 +361,7 @@ export default function DashboardCharts({ userRole, companyData, userFilterData 
     if (loading) {
       return (
         <div className="flex items-center justify-center h-64">
-          <div className="animate-spin w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full"></div>
+          <div className="w-8 h-8 border-4 border-blue-500 rounded-full animate-spin border-t-transparent"></div>
           <span className="ml-3 text-gray-600">Loading chart data...</span>
         </div>
       )
@@ -480,19 +480,19 @@ export default function DashboardCharts({ userRole, companyData, userFilterData 
   }
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+    <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
       {/* Company Users: Only Two Charts Side by Side */}
       {userRole === "company" ? (
-        <div className="lg:col-span-3 grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 gap-6 lg:col-span-3 lg:grid-cols-2">
           {/* Left: Task Completion Chart */}
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
-            <h2 className="text-xl font-semibold text-gray-900 mb-4">Task Completion</h2>
+          <div className="p-6 bg-white border border-gray-200 shadow-sm rounded-2xl">
+            <h2 className="mb-4 text-xl font-semibold text-gray-900">Task Completion</h2>
             {renderChart("completion")}
           </div>
 
           {/* Right: Project Status Chart */}
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
-            <h2 className="text-xl font-semibold text-gray-900 mb-4">Project Status</h2>
+          <div className="p-6 bg-white border border-gray-200 shadow-sm rounded-2xl">
+            <h2 className="mb-4 text-xl font-semibold text-gray-900">Project Status</h2>
             {renderChart("status")}
           </div>
         </div>
@@ -500,42 +500,43 @@ export default function DashboardCharts({ userRole, companyData, userFilterData 
         <>
           {/* Admin + User Original Layout */}
           {/* Main Chart */}
-          <div className="lg:col-span-2 bg-white rounded-2xl shadow-sm border border-gray-200">
-            <div className="p-6 border-b border-gray-200">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-xl font-semibold text-gray-900">
-                  {userRole === 'admin' ? 'Analytics Dashboard' : 'My Performance'}
-                </h2>
-                <div className="flex items-center space-x-2">
-                  {filteredTabs.map((tab) => (
-                    <button
-                      key={tab.id}
-                      onClick={() => setActiveChart(tab.id)}
-                      className={`flex items-center space-x-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                        activeChart === tab.id
-                          ? "bg-blue-100 text-blue-700"
-                          : "text-gray-500 hover:text-gray-900 hover:bg-gray-100"
-                      }`}
-                    >
-                      <tab.icon className="w-4 h-4" />
-                      <span className="hidden sm:inline">{tab.label}</span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </div>
-            <div className="p-6">{renderChart()}</div>
-          </div>
+          <div className="bg-white border border-gray-200 shadow-sm lg:col-span-3 rounded-2xl"> {/* Changed from lg:col-span-2 to lg:col-span-3 */}
+  <div className="p-6 border-b border-gray-200">
+    <div className="flex items-center justify-between mb-4">
+      <h2 className="text-xl font-semibold text-gray-900">
+        {userRole === 'admin' ? 'Analytics Dashboard' : 'My Performance'}
+      </h2>
+      <div className="flex items-center space-x-2">
+        {filteredTabs.map((tab) => (
+          <button
+            key={tab.id}
+            onClick={() => setActiveChart(tab.id)}
+            className={`flex items-center space-x-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+              activeChart === tab.id
+                ? "bg-blue-100 text-blue-700"
+                : "text-gray-500 hover:text-gray-900 hover:bg-gray-100"
+            }`}
+          >
+            <tab.icon className="w-4 h-4" />
+            <span className="hidden sm:inline">{tab.label}</span>
+          </button>
+        ))}
+      </div>
+    </div>
+  </div>
+  <div className="p-6">{renderChart()}</div>
+</div>
+
 
           {/* Stats + Insights Section */}
           <div className="space-y-6">
             {/* Quick Stats */}
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Quick Stats</h3>
+            {/* <div className="p-6 bg-white border border-gray-200 shadow-sm rounded-2xl">
+              <h3 className="mb-4 text-lg font-semibold text-gray-900">Quick Stats</h3>
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center space-x-3">
-                    <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
+                    <div className="flex items-center justify-center w-8 h-8 bg-blue-100 rounded-lg">
                       <Users className="w-4 h-4 text-blue-600" />
                     </div>
                     <span className="text-sm text-gray-600">Total Tasks</span>
@@ -546,7 +547,7 @@ export default function DashboardCharts({ userRole, companyData, userFilterData 
                 </div>
                 <div className="flex items-center justify-between">
                   <div className="flex items-center space-x-3">
-                    <div className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center">
+                    <div className="flex items-center justify-center w-8 h-8 bg-green-100 rounded-lg">
                       <CheckCircle className="w-4 h-4 text-green-600" />
                     </div>
                     <span className="text-sm text-gray-600">Tasks Completed</span>
@@ -557,7 +558,7 @@ export default function DashboardCharts({ userRole, companyData, userFilterData 
                 </div>
                 <div className="flex items-center justify-between">
                   <div className="flex items-center space-x-3">
-                    <div className="w-8 h-8 bg-orange-100 rounded-lg flex items-center justify-center">
+                    <div className="flex items-center justify-center w-8 h-8 bg-orange-100 rounded-lg">
                       <Clock className="w-4 h-4 text-orange-600" />
                     </div>
                     <span className="text-sm text-gray-600">Pending Tasks</span>
@@ -567,12 +568,12 @@ export default function DashboardCharts({ userRole, companyData, userFilterData 
                   </span>
                 </div>
               </div>
-            </div>
+            </div> */}
 
             {/* Project Status Legend */}
             {activeChart === "status" && !loading && (
-              <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">Project Status</h3>
+              <div className="p-6 bg-white border border-gray-200 shadow-sm rounded-2xl">
+                <h3 className="mb-4 text-lg font-semibold text-gray-900">Project Status</h3>
                 <div className="space-y-3">
                   {chartData.projectStatusData.map((item, index) => (
                     <div key={index} className="flex items-center justify-between">
@@ -592,24 +593,24 @@ export default function DashboardCharts({ userRole, companyData, userFilterData 
 
             {/* Team Performance Details (Admin only) */}
             {/* {activeChart === "performance" && userRole === 'admin' && !loading && (
-              <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">Team Performance Details</h3>
+              <div className="p-6 bg-white border border-gray-200 shadow-sm rounded-2xl">
+                <h3 className="mb-4 text-lg font-semibold text-gray-900">Team Performance Details</h3>
                 <div className="space-y-3">
                   {chartData.teamPerformanceData.map((team, index) => (
-                    <div key={index} className="border border-gray-100 rounded-lg p-3">
+                    <div key={index} className="p-3 border border-gray-100 rounded-lg">
                       <div className="flex items-center justify-between mb-2">
                         <span className="text-sm font-medium text-gray-900">{team.name}</span>
-                        <span className="text-xs bg-purple-100 text-purple-800 px-2 py-1 rounded">
+                        <span className="px-2 py-1 text-xs text-purple-800 bg-purple-100 rounded">
                           {team.efficiency}% Efficiency
                         </span>
                       </div>
-                      <div className="flex justify-between text-xs text-gray-600 mb-2">
+                      <div className="flex justify-between mb-2 text-xs text-gray-600">
                         <span>{team.tasks} Tasks</span>
                         <span>{team.completed || 0} Completed</span>
                       </div>
-                      <div className="w-full bg-gray-200 rounded-full h-2">
+                      <div className="w-full h-2 bg-gray-200 rounded-full">
                         <div
-                          className="bg-green-500 h-2 rounded-full"
+                          className="h-2 bg-green-500 rounded-full"
                           style={{ width: `${team.efficiency}%` }}
                         ></div>
                       </div>
@@ -620,11 +621,11 @@ export default function DashboardCharts({ userRole, companyData, userFilterData 
             )} */}
 
             {/* Performance Insights */}
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Performance Insights</h3>
+            {/* <div className="p-6 bg-white border border-gray-200 shadow-sm rounded-2xl">
+              <h3 className="mb-4 text-lg font-semibold text-gray-900">Performance Insights</h3>
               <div className="space-y-4">
-                <div className="bg-green-50 border border-green-200 rounded-lg p-3">
-                  <div className="flex items-center space-x-2 mb-1">
+                <div className="p-3 border border-green-200 rounded-lg bg-green-50">
+                  <div className="flex items-center mb-1 space-x-2">
                     <TrendingUp className="w-4 h-4 text-green-600" />
                     <span className="text-sm font-medium text-green-800">Tasks Status</span>
                   </div>
@@ -635,7 +636,7 @@ export default function DashboardCharts({ userRole, companyData, userFilterData 
                   </p>
                 </div>
               </div>
-            </div>
+            </div> */}
           </div>
         </>
       )}

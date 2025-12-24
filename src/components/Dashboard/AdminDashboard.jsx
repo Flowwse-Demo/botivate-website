@@ -941,6 +941,8 @@ export default function AdminDashboard({
         .not("planned3", "is", null)  // planned3 NOT NULL
         .is("actual3", null);         // actual3 NULL
 
+        
+
       if (userRole === "company" && companyData?.companyName) {
         pendingQuery = pendingQuery.eq("party_name", companyData.companyName);
       } else if (userRole === "user" && userFilterData?.username) {
@@ -1373,7 +1375,7 @@ const calculateStatsFromSupabase = (
     filteredData = filteredData.filter(
       (item) =>
         item.party_name &&
-        item.party_name.toLowerCase() === companyData.companyName.toLowerCase()
+        item.party_name?.toLowerCase() === companyData?.companyName?.toLowerCase()
     );
 
     // console.log(`After company filtering: ${filteredData.length} tasks found`);
@@ -1464,7 +1466,7 @@ const getCompanyTableDataFromSupabase = (supabaseData, companyData) => {
   const filteredData = supabaseData.filter(
     (item) =>
       item.party_name &&
-      item.party_name.toLowerCase() === companyData.companyName.toLowerCase()
+      item.party_name?.toLowerCase() === companyData?.companyName?.toLowerCase()
   );
 
   // console.log('Filtered company data count:', filteredData.length);
@@ -2833,8 +2835,8 @@ function CompanyFilters({
       const data = supabaseData.filter(
         (item) =>
           item.party_name &&
-          item.party_name.toLowerCase() ===
-          companyData.companyName.toLowerCase()
+          item.party_name?.toLowerCase() ===
+          companyData?.companyName?.toLowerCase()
       );
       setFilteredData(data);
     }
@@ -2975,8 +2977,8 @@ function CompanyTableSection({ companyData, supabaseData, filters }) {
       let data = supabaseData.filter(
         (item) =>
           item.party_name &&
-          item.party_name.toLowerCase() ===
-          companyData.companyName.toLowerCase()
+          item.party_name?.toLowerCase() ===
+          companyData?.companyName?.toLowerCase()
       );
 
       // Then apply additional filters

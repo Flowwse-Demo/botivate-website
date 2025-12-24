@@ -29,6 +29,7 @@ export default function LoginModal({ isOpen, onClose, onLogin }) {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState("")
 
+  console.log(formData,"formdata")
   // Cookie utility functions
 // const setCookie = (name, value, days) => {
 //   const expires = new Date();
@@ -586,6 +587,8 @@ const handleSubmit = async (e) => {
         .eq("user_role", "admin")
         .single();
 
+
+        console.log(data,"data")
       if (error || !data) {
         throw new Error("Invalid admin credentials.");
       }
@@ -603,7 +606,7 @@ const handleSubmit = async (e) => {
       }
 
       const sessionData = {
-        role: "company",
+        role: "admin",
         username: formData.username,     // company_id
         pagination: paginationData,
         filterData: null,
@@ -684,6 +687,7 @@ return;
       }
 
       // ✅ NOW data is available — SAFE TO USE
+    
       localStorage.setItem("company_name", data.company_name);
       console.log("LOGIN company_name saved:", data.company_name);
 

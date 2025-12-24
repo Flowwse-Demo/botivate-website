@@ -177,6 +177,8 @@ const getCookie = (name) => {
   sessionStorage.setItem('userSession', JSON.stringify(sessionData))
   sessionStorage.setItem('currentPage', 'dashboard')
   localStorage.setItem('userData', JSON.stringify(userData))
+
+  console.log(userData,"suer dat formteflkjdfkjflkjdfkljfklj")
   
   // console.log('✅ Session data stored:', sessionData);
 }
@@ -208,7 +210,11 @@ const getCookie = (name) => {
   deleteCookie('userSession')
   deleteCookie('currentPage')
   sessionStorage.clear()
+  localStorage.removeItem("user")
+  localStorage.removeItem("currentUser")
   localStorage.removeItem("userData")
+  localStorage.removeItem("role")
+
   
   // Set fresh session after logout
   sessionStorage.setItem('sessionStartTime', Date.now().toString());

@@ -210,7 +210,7 @@ export default function TaskList({
 
   // Determine if user is company or admin/regular user
   const isCompanyUser = companyData && companyData.companyName;
-  const isAdminUser = userFilterData?.isAdmin;
+  const isAdminUser = userFilterData?.isAdmin || userRole === "admin";
 
   // Filter columns based on user type
   // Replace the getVisibleColumns function with this corrected version

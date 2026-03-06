@@ -51,7 +51,7 @@ export default function TicketModal({ isOpen, onClose }) {
 
   const handleSubmit = (e) => {
     e.preventDefault()
-    console.log("Ticket submitted:", formData)
+    
     // Handle form submission
     onClose()
   }

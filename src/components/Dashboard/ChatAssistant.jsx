@@ -52,7 +52,7 @@ const ChatAssistant = () => {
       }
       
       const data = await response.json()
-      console.log("API response:", data)
+      
 
       const botResponse = data.answer || 
                          data.response ||

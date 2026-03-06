@@ -17,6 +17,9 @@ import {
   Filter,
 } from "lucide-react";
 import supabase from "../../supabaseClient";
+import { GOOGLE_SHEETS_URL as GOOGLE_SHEETS_BASE_URL } from "../../config/api";
+import { formatDateTime, formatDateToDDMMYY } from "../../utils/dateFormatters";
+import { getPriorityColor } from "../../utils/statusHelpers";
 
 const Button = ({ children, onClick, disabled, className, ...props }) => (
   <button
@@ -40,7 +43,6 @@ const fetchMasterSheetLinkData = async () => {
     if (error) throw error;
 
     if (data && data.length > 0) {
-      // console.log("Fetched Master Sheet Link data:", data.length, "rows")
       return data;
     } else {
       console.warn("No Master Sheet Link data found");
@@ -58,7 +60,6 @@ const fetchMasterSheetLinkData = async () => {
 // Function to get party names that match the logged-in company
 const getCompanyPartyNames = (companyName, masterSheetData) => {
   if (!companyName || !masterSheetData || !Array.isArray(masterSheetData)) {
-    // console.log('  - Is Array:', Array.isArray(masterSheetData))
     return [];
   }
 
@@ -161,10 +162,8 @@ export default function TaskList({
   };
 
 
-
   // Google Sheets API configuration
-  const GOOGLE_SHEETS_URL =
-    "https://script.google.com/macros/s/AKfycbzG8CyTBV-lk2wQ0PKjhrGUnBKdRBY-tkFVz-6GzGcbXqdEGYF0pWyfCl0BvGfVhi0/exec";
+  const GOOGLE_SHEETS_URL = GOOGLE_SHEETS_BASE_URL;
   const SHEET_NAME = "FMS";
 
   // Table Columns Configuration - Hide first 7 columns for company users
@@ -184,29 +183,7 @@ export default function TaskList({
   //   { key: "notes", label: "Notes" },
   //   { key: "expectedDateToClose", label: "Expected Date To Close" },
   // ];
-  const formatDateTime = (dateString) => {
-    if (!dateString) return "";
 
-    // If already in correct format, return as-is
-    if (
-      typeof dateString === "string" &&
-      dateString.match(/\d{2}\/\d{2}\/\d{4} \d{2}:\d{2}/)
-    ) {
-      return dateString;
-    }
-
-    // If it's a Date object or ISO string
-    const date = new Date(dateString);
-    if (isNaN(date.getTime())) return dateString; // Return original if invalid date
-
-    const day = String(date.getDate()).padStart(2, "0");
-    const month = String(date.getMonth() + 1).padStart(2, "0");
-    const year = date.getFullYear();
-    const hours = String(date.getHours()).padStart(2, "0");
-    const minutes = String(date.getMinutes()).padStart(2, "0");
-
-    return `${day}/${month}/${year} ${hours}:${minutes}`;
-  };
 
   // Determine if user is company or admin/regular user
   const isCompanyUser = companyData && companyData.companyName;
@@ -246,49 +223,6 @@ export default function TaskList({
   const filteredColumns = getVisibleColumns(); // JSX se pehle
 
 
-  // Date formatting function
-  const formatDateToDDMMYY = (dateString) => {
-    if (!dateString) return "";
-
-    try {
-      // Handle various date formats
-      let date;
-
-      // If it's already in dd/mm/yyyy or dd/mm/yy format, parse it
-      if (dateString.includes("/")) {
-        const parts = dateString.split("/");
-        if (parts.length === 3) {
-          const day = parseInt(parts[0]);
-          const month = parseInt(parts[1]) - 1; // JavaScript months are 0-indexed
-          let year = parseInt(parts[2]);
-
-          // Handle 2-digit years
-          if (year < 100) {
-            year += year < 50 ? 2000 : 1900;
-          }
-
-          date = new Date(year, month, day);
-        }
-      } else {
-        // Try parsing as ISO date or other formats
-        date = new Date(dateString);
-      }
-
-      // Check if date is valid
-      if (isNaN(date.getTime())) {
-        return dateString; // Return original if can't parse
-      }
-
-      // Format to dd/mm/yy
-      const day = date.getDate().toString().padStart(2, "0");
-      const month = (date.getMonth() + 1).toString().padStart(2, "0");
-      const year = date.getFullYear().toString().slice(-2);
-
-      return `${day}/${month}/${year}`;
-    } catch (error) {
-      return dateString; // Return original if error
-    }
-  };
 
   // Get current user from session storage
   const getCurrentUser = () => {
@@ -417,14 +351,12 @@ export default function TaskList({
   const loadMasterSheetData = async () => {
     if (!isCompanyUser || masterSheetData) return masterSheetData;
 
-    // console.log('Loading Master Sheet Link for company:', companyData.companyName)
     setMasterSheetLoading(true);
 
     try {
       const masterData = await fetchMasterSheetLinkData();
       if (masterData) {
         setMasterSheetData(masterData);
-        // console.log('Master Sheet Link data loaded:', masterData.length, 'rows')
         return masterData;
       }
     } catch (error) {
@@ -447,7 +379,6 @@ export default function TaskList({
     }
 
     if (rawData.length === 0) {
-      // console.log("No task data found");
       return { tasks: [], teamMembers1: [], teamMembers2: [] };
     }
 
@@ -541,9 +472,6 @@ export default function TaskList({
       return b.id - a.id;
     });
 
-    // console.log("Transformed tasks:", sortedTasks);
-    // console.log("Team members 1:", teamMembers1);
-    // console.log("Team members 2:", teamMembers2);
 
     return { tasks: sortedTasks, teamMembers1, teamMembers2 };
   };
@@ -573,7 +501,6 @@ export default function TaskList({
         throw new Error("Invalid tasks data from Supabase");
       }
 
-      // console.log("Raw data from Supabase:", tasksData)
 
       // STEP 3: Transform data using the new function
       const {
@@ -587,10 +514,10 @@ export default function TaskList({
 
       // STEP 4: Filter data for pending and completed
       const pending = transformedTasks.filter(
-        (item) => item.planned3 && !item.actual3
+        (item) => !item.actual3 // If there's no actual3 completion date, it's pending.
       );
       const history = transformedTasks.filter(
-        (item) => item.planned3 && item.actual3
+        (item) => item.actual3 // If there IS an actual3 date, it's completed / history.
       );
 
       setPendingData(pending);
@@ -603,7 +530,6 @@ export default function TaskList({
         ),
       ]);
 
-      // console.log(`Final data set - Pending: ${pending.length}, Completed: ${history.length}`)
     } catch (err) {
       console.error("Error fetching tasks:", err);
       setError(err.message);
@@ -637,12 +563,10 @@ export default function TaskList({
       tasksToFilter = [...pendingData, ...historyData];
     }
 
-    // console.log(`Total tasks before filtering: ${tasksToFilter.length}`);
 
     // For company users, filter by party_name matching company name
     if (isCompanyUser && companyData?.companyName) {
       const companyNameLower = companyData.companyName.toLowerCase().trim();
-      // console.log(`Filtering for company: "${companyData.companyName}"`);
 
       tasksToFilter = tasksToFilter.filter((task) => {
         const taskPartyName = task.partyName
@@ -658,12 +582,10 @@ export default function TaskList({
 
       // If user is admin or has showAllData permission, show all tasks
       if (userFilterData.isAdmin || userFilterData.showAllData) {
-        // console.log(`Showing all tasks for admin/user with showAllData permission`);
       }
       // For regular users, filter tasks assigned to them
       else if (userFilterData.username) {
         const username = userFilterData.username.toLowerCase();
-        // console.log(`Filtering for user: ${username}`);
 
         tasksToFilter = tasksToFilter.filter((task) => {
           const assignedMember1 = task.assignedMember1
@@ -677,7 +599,6 @@ export default function TaskList({
         });
       }
 
-      // console.log(`User filter: ${beforeCount} -> ${tasksToFilter.length} tasks`);
     }
 
     const finalTasks = tasksToFilter.filter((task) => {
@@ -701,26 +622,21 @@ export default function TaskList({
       return matchesSearch && matchesPriority && matchesStatus && matchesParty;
     });
 
-    // console.log(`Final filtered tasks: ${finalTasks.length}`);
     return finalTasks;
   };
 
   const filteredTasks = getFilteredTasks();
-  // console.log("hii",filteredTasks);
 
   const handleTaskSelection = (taskId) => {
     const task = filteredTasks.find((t) => t.id === taskId);
 
     if (!task) {
-      // console.log(`Task not found: ${taskId}`)
       return;
     }
 
-    // console.log(`Attempting to select task: ${task.taskNo}`)
 
     // Check if user can submit this task
     if (!canUserSubmitTask(task)) {
-      // console.log(`Cannot select task ${task.taskNo} - User cannot submit`)
       alert(
         "You cannot select this task as it is not assigned to you for submission or it is already completed."
       );
@@ -730,10 +646,8 @@ export default function TaskList({
     const newSelected = new Set(selectedTasks);
     if (newSelected.has(taskId)) {
       newSelected.delete(taskId);
-      // console.log(`Removed task ${task.taskNo} from selection`)
     } else {
       newSelected.add(taskId);
-      // console.log(`Added task ${task.taskNo} to selection`)
     }
     setSelectedTasks(newSelected);
   };
@@ -790,7 +704,6 @@ export default function TaskList({
       const currentDate = new Date().toISOString();
       const submittingUser = getCurrentUser();
 
-      // console.log(`Starting submission for ${selectedTasks.size} tasks by user: ${submittingUser}`);
 
       const results = [];
 
@@ -798,11 +711,9 @@ export default function TaskList({
         const task = filteredTasks.find((t) => t.id === taskId);
         if (!task) continue;
 
-        // console.log(`Processing task: ${task.taskNo}`);
 
         // Final validation before API call
         if (!canUserSubmitTask(task)) {
-          // console.log(`Final validation failed for task: ${task.taskNo}`);
           results.push({
             taskNo: task.taskNo,
             success: false,
@@ -826,7 +737,6 @@ export default function TaskList({
             .eq("task_no", task.taskNo);
 
           if (error) {
-            // console.log(`Supabase error for task ${task.taskNo}:`, error);
             throw new Error(error.message || "Supabase update failed");
           }
 
@@ -836,9 +746,7 @@ export default function TaskList({
             message: "Completed",
           });
 
-          // console.log(`Successfully submitted task ${task.taskNo}`);
         } catch (error) {
-          // console.log(`Error for task ${task.taskNo}:`, error.message);
           results.push({
             taskNo: task.taskNo,
             success: false,
@@ -977,9 +885,7 @@ export default function TaskList({
       formData.append("status1", newStatus);
       // DO NOT send: assignedMember2, submissionDate2, completedBy
 
-      console.log(
-        `Forwarding task ${selectedTaskForAssign.taskNo}: ${statusAE} -> ${newStatus}`
-      );
+      
 
       const response = await fetch(GOOGLE_SHEETS_URL, {
         method: "POST",
@@ -999,7 +905,6 @@ export default function TaskList({
         throw new Error(result.message || "Failed to forward task");
       }
 
-      // console.log(`Task ${selectedTaskForAssign.taskNo} successfully forwarded with status: ${newStatus}`)
 
       // Update local state - keep in pending with new forward status
       const updateTask = (task) => ({
@@ -1192,20 +1097,20 @@ export default function TaskList({
             <option value="Medium">Medium</option>
             <option value="Low">Low</option>
           </select>
-         {!isCompanyUser && (
-  <select
-    value={filterParty}
-    onChange={(e) => setFilterParty(e.target.value)}
-    className="px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-  >
-    <option value="all">All Parties</option>
-    {uniqueParties.map((party) => (
-      <option key={party} value={party}>
-        {party}
-      </option>
-    ))}
-  </select>
-)}
+          {!isCompanyUser && (
+            <select
+              value={filterParty}
+              onChange={(e) => setFilterParty(e.target.value)}
+              className="px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            >
+              <option value="all">All Parties</option>
+              {uniqueParties.map((party) => (
+                <option key={party} value={party}>
+                  {party}
+                </option>
+              ))}
+            </select>
+          )}
           {type === "all" && (
             <select
               value={filterStatus}
@@ -1249,8 +1154,8 @@ export default function TaskList({
               onClick={handleSubmitTasks}
               disabled={selectedTasks.size === 0 || submitting}
               className={`w-full sm:w-auto ${selectedTasks.size === 0 || submitting
-                  ? "bg-gray-300 cursor-not-allowed"
-                  : "bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800"
+                ? "bg-gray-300 cursor-not-allowed"
+                : "bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800"
                 } text-white`}
             >
               {submitting ? (
@@ -1370,8 +1275,8 @@ export default function TaskList({
                             onChange={() => handleTaskSelection(task.id)}
                             disabled={!isTaskSelectable(task)}
                             className={`w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 ${!isTaskSelectable(task)
-                                ? "opacity-50 cursor-not-allowed"
-                                : ""
+                              ? "opacity-50 cursor-not-allowed"
+                              : ""
                               }`}
                           />
                         )}
@@ -1501,14 +1406,14 @@ export default function TaskList({
                       <td className="px-4 py-3">
                         <span
                           className={`px-2 py-1 text-xs font-medium rounded-full ${task.status1?.includes("completed by")
-                              ? "bg-green-100 text-green-800"
-                              : task.status1?.includes("forward2")
-                                ? "bg-purple-100 text-purple-800"
-                                : task.status1?.includes("forward1")
-                                  ? "bg-blue-100 text-blue-800"
-                                  : task.status === "pending"
-                                    ? "bg-yellow-100 text-yellow-800"
-                                    : "bg-gray-100 text-gray-800"
+                            ? "bg-green-100 text-green-800"
+                            : task.status1?.includes("forward2")
+                              ? "bg-purple-100 text-purple-800"
+                              : task.status1?.includes("forward1")
+                                ? "bg-blue-100 text-blue-800"
+                                : task.status === "pending"
+                                  ? "bg-yellow-100 text-yellow-800"
+                                  : "bg-gray-100 text-gray-800"
                             }`}
                         >
                           {task.status1 || task.status || "Not Started"}
@@ -1559,8 +1464,8 @@ export default function TaskList({
                         onChange={() => handleTaskSelection(task.id)}
                         disabled={!isTaskSelectable(task)}
                         className={`w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 mr-3 ${!isTaskSelectable(task)
-                            ? "opacity-50 cursor-not-allowed"
-                            : ""
+                          ? "opacity-50 cursor-not-allowed"
+                          : ""
                           }`}
                       />
                       <span className="text-sm font-medium text-gray-900">
@@ -1574,14 +1479,14 @@ export default function TaskList({
                     <div className="mb-3">
                       <span
                         className={`px-2 py-1 text-xs font-medium rounded-full ${task.status1?.includes("completed by")
-                            ? "bg-green-100 text-green-800"
-                            : task.status1?.includes("forward2")
-                              ? "bg-purple-100 text-purple-800"
-                              : task.status1?.includes("forward1")
-                                ? "bg-blue-100 text-blue-800"
-                                : task.status === "pending"
-                                  ? "bg-yellow-100 text-yellow-800"
-                                  : "bg-gray-100 text-gray-800"
+                          ? "bg-green-100 text-green-800"
+                          : task.status1?.includes("forward2")
+                            ? "bg-purple-100 text-purple-800"
+                            : task.status1?.includes("forward1")
+                              ? "bg-blue-100 text-blue-800"
+                              : task.status === "pending"
+                                ? "bg-yellow-100 text-yellow-800"
+                                : "bg-gray-100 text-gray-800"
                           }`}
                       >
                         {task.status1 || task.status || "Not Started"}
@@ -1838,12 +1743,12 @@ export default function TaskList({
                       </span>
                       <span
                         className={`px-3 py-1 text-xs font-medium rounded-full ${selectedTaskForAssign?.status1?.includes("forward2")
-                            ? "bg-purple-100 text-purple-800 border border-purple-200"
-                            : selectedTaskForAssign?.status1?.includes(
-                              "forward1"
-                            )
-                              ? "bg-blue-100 text-blue-800 border border-blue-200"
-                              : "bg-gray-100 text-gray-800 border border-gray-200"
+                          ? "bg-purple-100 text-purple-800 border border-purple-200"
+                          : selectedTaskForAssign?.status1?.includes(
+                            "forward1"
+                          )
+                            ? "bg-blue-100 text-blue-800 border border-blue-200"
+                            : "bg-gray-100 text-gray-800 border border-gray-200"
                           }`}
                       >
                         {selectedTaskForAssign?.status1 || "Normal"}

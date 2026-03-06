@@ -66,7 +66,7 @@ const UserTicketForm = ({ isOpen, onClose }) => {
 
   const handleSubmit = (e) => {
     e.preventDefault()
-    console.log("User ticket submitted:", formData)
+    
     onClose()
   }
 

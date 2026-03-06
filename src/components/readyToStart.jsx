@@ -57,11 +57,7 @@ export default function ReadyToStart() {
       submitFormData.append('action', 'insert');
       submitFormData.append('rowData', JSON.stringify(rowData));
 
-      console.log('Sending data:', {
-        sheetName: 'Email-Send',
-        action: 'insert',
-        rowData: rowData
-      });
+      
 
       const response = await fetch(SCRIPT_URL, {
         method: 'POST',
@@ -73,7 +69,7 @@ export default function ReadyToStart() {
       }
 
       const result = await response.json();
-      console.log('Response:', result);
+      
 
       if (result.success) {
         setSubmitStatus('success');

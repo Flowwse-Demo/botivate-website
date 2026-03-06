@@ -158,7 +158,7 @@ export default function Contact() {
                   contactText={member.contactText}
                   avatarUrl={member.avatarUrl}
                   enableTilt={true}
-                  onContactClick={() => console.log(`Contact ${member.name}`)}
+                  onContactClick={() => { }}
                 />
               </motion.div>
             ))}

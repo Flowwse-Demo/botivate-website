@@ -1,10 +1,9 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import React from "react";
 import {
   RefreshCw,
-  AlertCircle,
   Clock,
   CheckCircle,
   Save,
@@ -13,77 +12,13 @@ import {
   Filter,
 } from "lucide-react";
 import supabase from "../../supabaseClient";
+import { API_CONFIG } from "../../config/api";
+import { formatDate } from "../../utils/dateFormatters";
+import Button from "./shared/Button";
+import StatsCard from "./shared/StatsCard";
+import { LoadingIndicator, ErrorMessage } from "./shared/StatusIndicators";
 
 // ==================== COMPONENTS ====================
-
-const Button = ({
-  children,
-  variant = "default",
-  className = "",
-  disabled = false,
-  ...props
-}) => {
-  const baseClasses =
-    "px-4 py-2 rounded-lg font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2";
-  const variants = {
-    default:
-      "bg-blue-600 text-white hover:bg-blue-700 focus:ring-blue-500 disabled:bg-gray-400",
-    outline:
-      "border border-gray-300 text-gray-700 hover:bg-gray-50 focus:ring-blue-500 disabled:bg-gray-100",
-    secondary:
-      "bg-gray-600 text-white hover:bg-gray-700 focus:ring-gray-500 disabled:bg-gray-400",
-  };
-  return (
-    <button
-      className={`${baseClasses} ${variants[variant]} ${className} ${disabled ? "cursor-not-allowed" : ""
-        }`}
-      disabled={disabled}
-      {...props}
-    >
-      {children}
-    </button>
-  );
-};
-
-const StatsCard = ({ title, count, description, icon: Icon, color }) => (
-  <div className="p-6 bg-white border border-gray-200 shadow-sm rounded-xl">
-    <div className="flex items-center justify-between">
-      <div>
-        <p className="text-sm font-medium text-gray-600">{title}</p>
-        <p className={`text-2xl font-bold ${color}`}>{count}</p>
-        <p className="mt-1 text-xs text-gray-500">{description}</p>
-      </div>
-      <div
-        className={`w-12 h-12 bg-gradient-to-r ${color === "text-orange-600"
-          ? "from-orange-500 to-red-600"
-          : color === "text-purple-600"
-            ? "from-purple-500 to-indigo-600"
-            : "from-green-500 to-emerald-600"
-          } rounded-lg flex items-center justify-center`}
-      >
-        <Icon className="w-6 h-6 text-white" />
-      </div>
-    </div>
-  </div>
-);
-
-const LoadingIndicator = ({ message }) => (
-  <div className="p-4 border border-blue-200 rounded-lg bg-blue-50">
-    <div className="flex items-center space-x-2">
-      <RefreshCw className="w-4 h-4 text-blue-600 animate-spin" />
-      <span className="text-blue-800">{message}</span>
-    </div>
-  </div>
-);
-
-const ErrorMessage = ({ error }) => (
-  <div className="p-4 border border-red-200 rounded-lg bg-red-50">
-    <div className="flex items-center space-x-2">
-      <AlertCircle className="w-4 h-4 text-red-600" />
-      <span className="text-red-800">Error: {error}</span>
-    </div>
-  </div>
-);
 
 const TabButton = ({ active, onClick, icon: Icon, label, count, color }) => (
   <button
@@ -170,15 +105,6 @@ const AssignmentInput = ({ type, value, onChange, placeholder, options = [], isT
 };
 // ==================== CONSTANTS ====================
 
-const API_CONFIG = {
-  FETCH_URL:
-    "https://script.google.com/macros/s/AKfycbzG8CyTBV-lk2wQ0PKjhrGUnBKdRBY-tkFVz-6GzGcbXqdEGYF0pWyfCl0BvGfVhi0/exec?sheet=FMS&action=fetch",
-  UPDATE_URL:
-    "https://script.google.com/macros/s/AKfycbzG8CyTBV-lk2wQ0PKjhrGUnBKdRBY-tkFVz-6GzGcbXqdEGYF0pWyfCl0BvGfVhi0/exec",
-  MASTER_SHEET_URL:
-    "https://script.google.com/macros/s/AKfycbzG8CyTBV-lk2wQ0PKjhrGUnBKdRBY-tkFVz-6GzGcbXqdEGYF0pWyfCl0BvGfVhi0/exec?sheet=Master%20Sheet%20Link&action=fetch",
-};
-
 const TABLE_COLUMNS = [
   { key: "task_no", label: "Task No", index: 1 },
   { key: "given_date", label: "Given Date", index: 2 },
@@ -194,24 +120,13 @@ const TABLE_COLUMNS = [
   { key: "notes", label: "Notes", index: 12 },
   { key: "expected_date_to_close", label: "Expected Date To Close", index: 13 },
 ];
-// Add this after the TABLE_COLUMNS constant and before the main component
-const formatDate = (dateString) => {
-  if (!dateString) return "";
-
-  const date = new Date(dateString);
-  if (isNaN(date.getTime())) return dateString; // Return original if invalid date
-
-  const day = String(date.getDate()).padStart(2, "0");
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const year = String(date.getFullYear()).slice(-2);
-
-  return `${day}/${month}/${year}`;
-};
 // ==================== MAIN COMPONENT ====================
-
-export default function TaskAssignmentSystem() {
+export default function TaskAssignmentSystem({ tasks: propTasks }) {
   // ==================== STATE ====================
-  const [allTasks, setAllTasks] = useState([]); // Store ALL tasks here
+  // Separate states for each tab to ensure independent pagination
+  const [pendingTasks, setPendingTasks] = useState([]);
+  const [historyTasks, setHistoryTasks] = useState([]);
+
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [activeTab, setActiveTab] = useState("pending");
@@ -219,7 +134,17 @@ export default function TaskAssignmentSystem() {
   const [assignmentForm, setAssignmentForm] = useState({});
   const [submitting, setSubmitting] = useState(false);
   const [teamMembers, setTeamMembers] = useState([]);
-  
+
+  // Independent Pagination State
+  const [pendingPage, setPendingPage] = useState(0);
+  const [historyPage, setHistoryPage] = useState(0);
+  const [pendingHasMore, setPendingHasMore] = useState(true);
+  const [historyHasMore, setHistoryHasMore] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+
+  const observer = useRef();
+  const PAGE_SIZE = 50;
+
 
   const [visibleColumns, setVisibleColumns] = useState(
     TABLE_COLUMNS.reduce((acc, col) => ({ ...acc, [col.key]: true }), {})
@@ -235,12 +160,12 @@ export default function TaskAssignmentSystem() {
   };
 
   const handleSelectAllColumns = (selectAll) => {
-  const newVisibleColumns = {};
-  TABLE_COLUMNS.forEach(col => {
-    newVisibleColumns[col.key] = selectAll;
-  });
-  setVisibleColumns(newVisibleColumns);
-};
+    const newVisibleColumns = {};
+    TABLE_COLUMNS.forEach(col => {
+      newVisibleColumns[col.key] = selectAll;
+    });
+    setVisibleColumns(newVisibleColumns);
+  };
 
 
   const fetchTeamMembers = async () => {
@@ -307,7 +232,7 @@ export default function TaskAssignmentSystem() {
         attachment_file: row.attachment_file || "",
         priority_in_customer: row.priority_in_customer || "",
         notes: row.notes || "",
-        expected_date_to_close: row.planned3 || "",
+        expected_date_to_close: row.expected_date_to_close || row.planned3 || "",
       };
     });
 
@@ -318,17 +243,20 @@ export default function TaskAssignmentSystem() {
 
       if (aIsCurrentlyAssigned && !bIsCurrentlyAssigned) return -1;
       if (!aIsCurrentlyAssigned && bIsCurrentlyAssigned) return 1;
-      if (aIsCurrentlyAssigned && bIsCurrentlyAssigned) return b.id - a.id;
 
-      return b.id - a.id;
+      const aId = Number(a.id) || 0;
+      const bId = Number(b.id) || 0;
+      if (aIsCurrentlyAssigned && bIsCurrentlyAssigned) return bId - aId;
+
+      return bId - aId;
     });
   };
 
   const filterTasksByStatus = (tasks, status) => {
     return tasks.filter((task) => {
       if (status === "pending") {
-        // planned1 filled, actual1 empty
-        return task.planned1 && !task.actual1;
+        // Not completed in stage 1 yet (actual1 is empty)
+        return !task.actual1;
       } else if (status === "completed") {
         // planned1 + actual1 both filled
         return task.planned1 && task.actual1;
@@ -341,24 +269,79 @@ export default function TaskAssignmentSystem() {
   };
 
   // ==================== API FUNCTIONS ====================
-  const fetchTasksFromAPI = async () => {
-    setLoading(true);
+  // ==================== API FUNCTIONS ====================
+  const fetchTasksFromAPI = useCallback(async (type = "pending", pageNumber = 0, isInitial = false) => {
+    if (pageNumber === 0) {
+      setLoading(true);
+    } else {
+      setLoadingMore(true);
+    }
     setError(null);
 
     try {
-      const { data, error } = await supabase.from("FMS").select("*"); // or only needed columns
+      const from = pageNumber * PAGE_SIZE;
+      const to = from + PAGE_SIZE - 1;
+
+      let query = supabase.from("FMS").select("*");
+
+      // Apply type-specific filters
+      if (type === "pending") {
+        query = query.is("actual1", null);
+      } else {
+        query = query.not("actual1", "is", null);
+      }
+
+      const { data, error } = await query
+        .order("id", { ascending: false })
+        .range(from, to);
 
       if (error) throw error;
 
-      const transformedTasks = transformSheetData(data); // 👈 you can reuse transformation
-      setAllTasks(transformedTasks);
+      const hasMoreData = data && data.length === PAGE_SIZE;
+      const transformedTasks = transformSheetData(data);
+
+      if (type === "pending") {
+        setPendingHasMore(hasMoreData);
+        setPendingPage(pageNumber);
+        if (isInitial || pageNumber === 0) {
+          setPendingTasks(transformedTasks);
+        } else {
+          setPendingTasks(prev => [...prev, ...transformedTasks]);
+        }
+      } else {
+        setHistoryHasMore(hasMoreData);
+        setHistoryPage(pageNumber);
+        if (isInitial || pageNumber === 0) {
+          setHistoryTasks(transformedTasks);
+        } else {
+          setHistoryTasks(prev => [...prev, ...transformedTasks]);
+        }
+      }
     } catch (err) {
       console.error("Error fetching tasks:", err);
       setError(err.message);
     } finally {
       setLoading(false);
+      setLoadingMore(false);
     }
-  };
+  }, []);
+
+  // Infinite Scroll Trigger Logic
+  const lastTaskElementRef = useCallback(node => {
+    if (loading || loadingMore) return;
+    if (observer.current) observer.current.disconnect();
+
+    const currentHasMore = activeTab === "pending" ? pendingHasMore : historyHasMore;
+    const currentPage = activeTab === "pending" ? pendingPage : historyPage;
+
+    observer.current = new IntersectionObserver(entries => {
+      if (entries[0].isIntersecting && currentHasMore) {
+        fetchTasksFromAPI(activeTab, currentPage + 1);
+      }
+    });
+
+    if (node) observer.current.observe(node);
+  }, [loading, loadingMore, activeTab, pendingHasMore, historyHasMore, pendingPage, historyPage, fetchTasksFromAPI]);
 
   const submitTaskAssignment = async (task, formData) => {
     try {
@@ -385,7 +368,7 @@ export default function TaskAssignmentSystem() {
       const { data, error } = await supabase
         .from("FMS")
         .update(updatePayload)
-        .eq("task_no", task.task_no); // adjust if primary key is different
+        .eq("id", task.id); // primary key is id
 
       if (error) throw error;
 
@@ -397,10 +380,15 @@ export default function TaskAssignmentSystem() {
   };
 
   // ==================== EVENT HANDLERS ====================
-  const handleRefresh = () => {
-    fetchTasksFromAPI();
+  const handleRefresh = useCallback(() => {
+    setPendingPage(0);
+    setHistoryPage(0);
+    setPendingHasMore(true);
+    setHistoryHasMore(true);
+    fetchTasksFromAPI("pending", 0, true);
+    fetchTasksFromAPI("history", 0, true);
     fetchTeamMembers();
-  };
+  }, [fetchTasksFromAPI]);
 
   const handleTabChange = (tab) => {
     setActiveTab(tab);
@@ -491,7 +479,8 @@ export default function TaskAssignmentSystem() {
       // Reset and refresh
       setSelectedTasks(new Set());
       setAssignmentForm({});
-      fetchTasksFromAPI();
+      fetchTasksFromAPI("pending", 0, true);
+      fetchTasksFromAPI("history", 0, true);
     } catch (err) {
       console.error("Error submitting assignments:", err);
       alert("Error submitting assignments: " + err.message);
@@ -502,15 +491,16 @@ export default function TaskAssignmentSystem() {
 
   // ==================== EFFECTS ====================
   useEffect(() => {
-    fetchTasksFromAPI();
+    fetchTasksFromAPI("pending", 0, true);
+    fetchTasksFromAPI("history", 0, true);
     fetchTeamMembers();
-  }, []); // Only fetch once when component mounts
+  }, [fetchTasksFromAPI]); // Fetch initial 50 for BOTH tabs on mount
   // ==================== COMPUTED VALUES ====================
-  const displayedTasks = filterTasksByStatus(allTasks, activeTab); // Filter for current tab
-  const pendingCount = filterTasksByStatus(allTasks, "pending").length;
-  const historyCount = filterTasksByStatus(allTasks, "history").length;
+  const displayedTasks = activeTab === "pending" ? pendingTasks : historyTasks;
+  const pendingCount = pendingTasks.length;
+  const historyCount = historyTasks.length;
   const allColumnsSelected = TABLE_COLUMNS.every(col => visibleColumns[col.key]);
-const someColumnsSelected = TABLE_COLUMNS.some(col => visibleColumns[col.key]);
+  const someColumnsSelected = TABLE_COLUMNS.some(col => visibleColumns[col.key]);
 
   // ==================== RENDER ====================
   return (
@@ -578,16 +568,16 @@ const someColumnsSelected = TABLE_COLUMNS.some(col => visibleColumns[col.key]);
                     </div>
                     <div className="space-y-2 max-h-96 overflow-y-auto">
                       <div className="pb-3 mb-3 border-b border-gray-200">
-    <label className="flex items-center space-x-2 cursor-pointer hover:bg-gray-50 p-2 rounded">
-     <input
-      type="checkbox"
-      checked={TABLE_COLUMNS.every(col => visibleColumns[col.key])}
-      onChange={(e) => handleSelectAllColumns(e.target.checked)}
-      className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-    />
-      <span className="text-sm font-semibold text-gray-900">Select All</span>
-    </label>
-  </div>
+                        <label className="flex items-center space-x-2 cursor-pointer hover:bg-gray-50 p-2 rounded">
+                          <input
+                            type="checkbox"
+                            checked={TABLE_COLUMNS.every(col => visibleColumns[col.key])}
+                            onChange={(e) => handleSelectAllColumns(e.target.checked)}
+                            className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                          />
+                          <span className="text-sm font-semibold text-gray-900">Select All</span>
+                        </label>
+                      </div>
                       {TABLE_COLUMNS.map((column) => (
                         <label
                           key={column.key}
@@ -736,8 +726,8 @@ const someColumnsSelected = TABLE_COLUMNS.some(col => visibleColumns[col.key]);
                           <th
                             key={column.key}
                             className={`px-4 py-3 text-xs font-medium text-left text-gray-500 uppercase ${column.key === "description_of_work"
-                                ? "min-w-[300px] max-w-[400px]"
-                                : "min-w-[100px]"
+                              ? "min-w-[300px] max-w-[400px]"
+                              : "min-w-[100px]"
                               }`}
                           >
                             {column.label}
@@ -748,16 +738,20 @@ const someColumnsSelected = TABLE_COLUMNS.some(col => visibleColumns[col.key]);
 
                     {/* Table Body */}
                     <tbody className="bg-white divide-y divide-gray-200">
-                      {displayedTasks.map((task) => (
-                        <tr key={task.task_no} className="hover:bg-gray-50">
+                      {displayedTasks.map((task, index) => (
+                        <tr
+                          key={task.id || task.task_no || Math.random()}
+                          className="hover:bg-gray-50"
+                          ref={index === displayedTasks.length - 1 ? lastTaskElementRef : null}
+                        >
                           {/* Checkbox - Only for pending tab */}
                           {activeTab === "pending" && (
                             <td className="w-12 px-4 py-3">
                               <input
                                 type="checkbox"
-                                checked={selectedTasks.has(task.task_no)}
+                                checked={selectedTasks.has(task.id)}
                                 onChange={(e) =>
-                                  handleCheckboxChange(task.task_no, e.target.checked)
+                                  handleCheckboxChange(task.id, e.target.checked)
                                 }
                                 className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
                               />
@@ -768,12 +762,12 @@ const someColumnsSelected = TABLE_COLUMNS.some(col => visibleColumns[col.key]);
                           {activeTab === "pending" && (
                             <>
                               <td className="px-4 py-3 min-w-[150px]">
-                                {selectedTasks.has(task.task_no) ? (
+                                {selectedTasks.has(task.id) ? (
                                   <AssignmentInput
                                     type="select"
-                                    value={assignmentForm[task.task_no]?.assignedMember || ""}
+                                    value={assignmentForm[task.id]?.assignedMember || ""}
                                     onChange={(value) =>
-                                      handleFormChange(task.task_no, "assignedMember", value)
+                                      handleFormChange(task.id, "assignedMember", value)
                                     }
                                     options={teamMembers}
                                   />
@@ -782,13 +776,13 @@ const someColumnsSelected = TABLE_COLUMNS.some(col => visibleColumns[col.key]);
                                 )}
                               </td>
                               <td className="px-4 py-3 min-w-[120px]">
-                                {selectedTasks.has(task.task_no) ? (
+                                {selectedTasks.has(task.id) ? (
                                   <AssignmentInput
                                     type="date"
                                     isTeam
-                                    value={assignmentForm[task.task_no]?.timeRequired || ""}
+                                    value={assignmentForm[task.id]?.timeRequired || ""}
                                     onChange={(value) =>
-                                      handleFormChange(task.task_no, "timeRequired", value)
+                                      handleFormChange(task.id, "timeRequired", value)
                                     }
                                     placeholder="e.g., 2 hours"
                                   />
@@ -797,12 +791,12 @@ const someColumnsSelected = TABLE_COLUMNS.some(col => visibleColumns[col.key]);
                                 )}
                               </td>
                               <td className="px-4 py-3 min-w-[150px]">
-                                {selectedTasks.has(task.task_no) ? (
+                                {selectedTasks.has(task.id) ? (
                                   <AssignmentInput
                                     type="text"
-                                    value={assignmentForm[task.task_no]?.remarks || ""}
+                                    value={assignmentForm[task.id]?.remarks || ""}
                                     onChange={(value) =>
-                                      handleFormChange(task.task_no, "remarks", value)
+                                      handleFormChange(task.id, "remarks", value)
                                     }
                                     placeholder="Add remarks"
                                   />
@@ -823,7 +817,7 @@ const someColumnsSelected = TABLE_COLUMNS.some(col => visibleColumns[col.key]);
                               </td>
                               <td className="px-4 py-3 min-w-[120px]">
                                 <span className="text-sm text-gray-900">
-                                  {task.how_many_time_taken || "-"}
+                                  {task.how_many_time_take || "-"}
                                 </span>
                               </td>
                               <td className="px-4 py-3 min-w-[150px]">
@@ -839,8 +833,8 @@ const someColumnsSelected = TABLE_COLUMNS.some(col => visibleColumns[col.key]);
                             <td
                               key={column.key}
                               className={`px-4 py-3 text-sm text-gray-900 ${column.key === "description_of_work"
-                                  ? "min-w-[300px] max-w-[400px]"
-                                  : "min-w-[100px]"
+                                ? "min-w-[300px] max-w-[400px]"
+                                : "min-w-[100px]"
                                 }`}
                             >
                               {column.key === "link_of_system" && task[column.key] ? (
@@ -897,9 +891,10 @@ const someColumnsSelected = TABLE_COLUMNS.some(col => visibleColumns[col.key]);
 
               {/* Mobile Card View */}
               <div className="p-4 space-y-4 md:hidden">
-                {displayedTasks.map((task) => (
+                {displayedTasks.map((task, index) => (
                   <div
                     key={task.id}
+                    ref={index === displayedTasks.length - 1 ? lastTaskElementRef : null}
                     className="p-4 bg-white border border-gray-200 rounded-lg shadow-sm"
                   >
                     {/* Mobile Task Header */}
@@ -908,7 +903,7 @@ const someColumnsSelected = TABLE_COLUMNS.some(col => visibleColumns[col.key]);
                         {activeTab === "pending" && (
                           <input
                             type="checkbox"
-                            checked={selectedTasks.has(task.task_no)}
+                            checked={selectedTasks.has(task.id)}
                             onChange={(e) =>
                               handleCheckboxChange(task.id, e.target.checked)
                             }
@@ -916,17 +911,17 @@ const someColumnsSelected = TABLE_COLUMNS.some(col => visibleColumns[col.key]);
                           />
                         )}
                         <h3 className="font-medium text-gray-900">
-                          Task #{task.taskNo}
+                          Task #{task.task_no}
                         </h3>
                       </div>
                       <span className="text-xs text-gray-500">
-                        {formatDate(task.givenDate)}
+                        {formatDate(task.given_date)}
                       </span>
                     </div>
 
                     {/* Mobile Assignment Section - Only for pending tab */}
                     {activeTab === "pending" &&
-                      selectedTasks.has(task.task_no) && (
+                      selectedTasks.has(task.id) && (
                         <div className="p-3 mb-3 space-y-2 rounded-lg bg-gray-50">
                           <div>
                             <label className="block mb-1 text-xs font-medium text-gray-700">
@@ -1073,9 +1068,9 @@ const someColumnsSelected = TABLE_COLUMNS.some(col => visibleColumns[col.key]);
 
                     {/* Mobile Links */}
                     <div className="flex pt-3 mt-3 space-x-4 border-t border-gray-100">
-                      {task.linkOfSystem && (
+                      {task.link_of_system && (
                         <a
-                          href={task.linkOfSystem}
+                          href={task.link_of_system}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="text-sm text-blue-600 hover:underline"
@@ -1083,9 +1078,9 @@ const someColumnsSelected = TABLE_COLUMNS.some(col => visibleColumns[col.key]);
                           System Link
                         </a>
                       )}
-                      {task.attachmentFile && (
+                      {task.attachment_file && (
                         <a
-                          href={task.attachmentFile}
+                          href={task.attachment_file}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="text-sm text-blue-600 hover:underline"
@@ -1098,6 +1093,38 @@ const someColumnsSelected = TABLE_COLUMNS.some(col => visibleColumns[col.key]);
                 ))}
               </div>
             </>
+          )}
+
+          {/* Infinite Scroll Footer */}
+          {displayedTasks.length > 0 && (
+            <div className="py-8 border-t border-gray-100">
+              {loadingMore && (
+                <div className="flex flex-col items-center justify-center space-y-2">
+                  <RefreshCw className="w-8 h-8 text-blue-600 animate-spin" />
+                  <p className="text-sm font-medium text-gray-600">Loading more tasks...</p>
+                  <p className="text-xs text-gray-400">Please wait while we fetch the next batch</p>
+                </div>
+              )}
+
+              {!(activeTab === "pending" ? pendingHasMore : historyHasMore) && (
+                <div className="flex flex-col items-center justify-center space-y-1">
+                  <div className="w-12 h-1 bg-gray-200 rounded-full mb-2"></div>
+                  <p className="text-sm font-medium text-gray-500">End of List</p>
+                  <p className="text-xs text-gray-400">Total {displayedTasks.length} tasks matched</p>
+                </div>
+              )}
+
+              {(activeTab === "pending" ? pendingHasMore : historyHasMore) && !loadingMore && !loading && (
+                <div className="flex justify-center">
+                  <button
+                    onClick={() => fetchTasksFromAPI(activeTab, (activeTab === "pending" ? pendingPage : historyPage) + 1)}
+                    className="px-4 py-2 text-sm font-medium text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors"
+                  >
+                    Load More Tasks
+                  </button>
+                </div>
+              )}
+            </div>
           )}
         </div>
 

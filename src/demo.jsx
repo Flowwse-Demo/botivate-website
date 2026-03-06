@@ -69,11 +69,11 @@ const isProcessingCacheValid = (cacheKey) => {
 // ✅ Optimized fetch functions with caching
 const fetchSupabaseDataCached = async (tableName) => {
   if (isCacheValid()) {
-    console.log(`🚀 Serving ${tableName} data from main cache - INSTANT!`)
+    
     return tableName === "FMS" ? dataCache.fmsData : dataCache.systemListData
   }
 
-  console.log(`📡 Fetching fresh ${tableName} data from Supabase...`)
+  
 
   try {
     let { data, error } = await supabase
@@ -126,18 +126,18 @@ export default function SystemsList({ userRole: propUserRole, companyData }) {
   useEffect(() => {
     if (propUserRole) {
       setUserRole(propUserRole)
-      console.log('SystemsList - User role set to:', propUserRole)
+      
     }
     if (companyData?.companyName) {
       setCompanyName(companyData.companyName)
-      console.log('SystemsList - Company name set to:', companyData.companyName)
+      
     }
   }, [propUserRole, companyData])
 
   // Simulate getting company name from login context (fallback)
   useEffect(() => {
     if (!propUserRole && !companyData) {
-      console.log('SystemsList - Using fallback values')
+      
       setUserRole("company")
       setCompanyName("")
     }
@@ -148,11 +148,11 @@ const processSystemsData = useCallback((systemData, userRole, companyName) => {
   const cacheKey = `${userRole}_${companyName}_${systemData?.data?.length || 0}`
 
   if (isProcessingCacheValid(cacheKey)) {
-    console.log("🚀 Using processed data from cache - INSTANT!")
+    
     return dataCache.processingCache.get(cacheKey).data
   }
 
-  console.log("🔄 Processing systems data...")
+  
   const startTime = performance.now()
 
   if (!systemData?.data) {
@@ -223,7 +223,7 @@ const processSystemsData = useCallback((systemData, userRole, companyName) => {
     })
   } else {
     // Company view - filter only company systems
-    console.log("Company access - filtering for:", companyName)
+    
 
     const companyKey = normalizeString(companyName)
 
@@ -292,7 +292,7 @@ const processSystemsData = useCallback((systemData, userRole, companyName) => {
     dataCache.processingCache.delete(oldestKey)
   }
 
-  console.log(`✅ Data processing completed in ${(performance.now() - startTime).toFixed(2)}ms`)
+  
   return resultSystems
 }, [])
 
@@ -303,7 +303,7 @@ const processSystemsData = useCallback((systemData, userRole, companyName) => {
 const fetchSystemsData = useCallback(async () => {
   // ⚡ INSTANT UI with quick cache
   if (isQuickCacheValid() && dataCache.quickCache.systems) {
-    console.log('🚀 INSTANT UI - Serving from quick cache!')
+    
     setSystems(dataCache.quickCache.systems)
     setLoading(false)
     return
@@ -313,15 +313,15 @@ const fetchSystemsData = useCallback(async () => {
     setLoading(true)
     setError(null)
 
-    console.log('User Role:', userRole)
-    console.log('Company Name:', companyName)
+    
+    
 
     // Fetch system_list from Supabase
-    console.log('🔄 Fetching data from Supabase...')
+    
    const [systemData] = await Promise.all([
   fetchSupabaseDataCached("system_list")  // only system_list
 ])
- console.log('✅ Data fetched, processing...')
+ 
 // process only systemData
 const processedSystems = processSystemsData(systemData, userRole, companyName)
 
@@ -350,7 +350,7 @@ const processedSystems = processSystemsData(systemData, userRole, companyName)
 
   // ✅ OPTIMIZED useEffect with caching
   useEffect(() => {
-    console.log('SystemsList - Fetching data with role:', userRole, 'company:', companyName)
+    
     fetchSystemsData()
 
     // Auto-refresh every 5 minutes

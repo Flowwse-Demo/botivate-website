@@ -49,7 +49,6 @@ const getCookie = (name) => {
       
       if (storedSession) {
         const userData = JSON.parse(storedSession);
-        // console.log('🔄 Restoring active user session:', userData);
 
         setUser({
           type: userData.role,
@@ -71,10 +70,8 @@ const getCookie = (name) => {
       const currentTime = Date.now();
       
       if (!sessionStartTime) {
-        // console.log('🆕 Fresh URL entry detected');
         const storedUser = localStorage.getItem('userData');
         if (storedUser) {
-          // console.log('🔍 Found previous login data - clearing for fresh start');
           sessionStorage.clear();
         }
 
@@ -86,7 +83,6 @@ const getCookie = (name) => {
         setUserFilterData(null);
         setCompanyData(null);
       } else {
-        // console.log('🔄 Page refresh within session - no active login found');
         setCurrentPage("home");
         setUser(null);
         setUserFilterData(null);
@@ -134,9 +130,6 @@ const getCookie = (name) => {
   }
 
  const handleLogin = (role, username, pagination, filterData, companyInfo = null) => {
-  // console.log('🎉 Login successful for:', username, 'Role:', role);
-  // console.log('📊 Filter data received:', filterData);
-  // console.log('🏢 Company data received:', companyInfo);
   
   // Handle pagination whether it's a string or object
   let paginationValue = pagination;
@@ -178,13 +171,11 @@ const getCookie = (name) => {
   sessionStorage.setItem('currentPage', 'dashboard')
   localStorage.setItem('userData', JSON.stringify(userData))
 
-  console.log(userData,"suer dat formteflkjdfkjflkjdfkljfklj")
   
-  // console.log('✅ Session data stored:', sessionData);
+  
 }
 
   // const handleLogout = () => {
-  //   // console.log('👋 User logging out');
   //   setUser(null)
   //   setUserFilterData(null)
   //   setCompanyData(null)
@@ -200,7 +191,6 @@ const getCookie = (name) => {
   // }
 
   const handleLogout = () => {
-  // console.log('👋 User logging out');
   setUser(null)
   setUserFilterData(null)
   setCompanyData(null)

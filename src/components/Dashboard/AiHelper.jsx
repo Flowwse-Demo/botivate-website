@@ -28,7 +28,7 @@ export default function AIHelperPage() {
 
   useEffect(() => {
     const cname = localStorage.getItem("company_name");
-    console.log("DEBUG company_name from localStorage:", cname);
+    
     setCompanyName(cname);
   }, []);
 
@@ -37,7 +37,7 @@ export default function AIHelperPage() {
     if (companyName) {
       const key = `ai_helper_chat_${companyName}`;
       localStorage.removeItem(key);
-      console.log("AI chat cleared from localStorage:", key);
+      
     }
   }, [companyName]);
 
@@ -117,7 +117,7 @@ export default function AIHelperPage() {
         company_name: companyName
       };
 
-      console.log("Sending request:", JSON.stringify(requestBody, null, 2))
+      
 
       // Call your AI endpoint
       const response = await fetch("http://127.0.0.1:8000/chat", {
@@ -135,7 +135,7 @@ export default function AIHelperPage() {
 
       const data = await response.json()
       
-      console.log("Received response:", data)
+      
       
       // Your backend returns { "answer": "response text" }
       const aiResponse = data.answer || data.response || data.message || 

@@ -63,7 +63,7 @@ export default function UserDashboard({ onLogout, username }) {
 
   const handleSubmit = (e) => {
     e.preventDefault()
-    console.log("Ticket submitted:", formData)
+    
     alert("Ticket submitted successfully!")
     // Reset form
     setFormData({

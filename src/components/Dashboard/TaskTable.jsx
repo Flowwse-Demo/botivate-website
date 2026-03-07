@@ -445,7 +445,7 @@ export default function TaskAssignmentSystem({ tasks: propTasks }) {
       // Process each selected task
       for (const taskId of selectedTasks) {
         try {
-          const task = displayedTasks.find((t) => t.task_no === taskId);
+          const task = displayedTasks.find((t) => t.id === taskId);
           const formData = assignmentForm[taskId] || {};
 
           const result = await submitTaskAssignment(task, formData);
@@ -455,7 +455,7 @@ export default function TaskAssignmentSystem({ tasks: propTasks }) {
           } else {
             errorCount++;
             console.error(
-              `Failed to update task ${task.taskNo}:`,
+              `Failed to update task ${task?.task_no}:`,
               result.error
             );
           }

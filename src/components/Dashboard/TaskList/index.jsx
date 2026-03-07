@@ -20,6 +20,7 @@ export default function TaskList({
     type = "all",
     userFilterData = null,
     companyData = null,
+    onRefreshStats = null,
 }) {
     // State
     const [loading, setLoading] = useState(true);
@@ -300,6 +301,8 @@ export default function TaskList({
             if (entries[0].isIntersecting && currentHasMore) {
                 loadMoreTasks(currentType);
             }
+        }, {
+            rootMargin: '200px'
         });
 
         if (node) observer.current.observe(node);
@@ -455,6 +458,11 @@ export default function TaskList({
 
             alert(`Successfully completed ${results.length} tasks`);
             setSelectedTasks(new Set());
+
+            // Trigger dashboard stats refresh
+            if (typeof onRefreshStats === 'function') {
+                onRefreshStats();
+            }
         } catch (error) {
             console.error("Submission error:", error);
             alert(`Error: ${error.message}`);
@@ -516,6 +524,11 @@ export default function TaskList({
                     ? selectedTaskForAssign.assignedMember1
                     : selectedTaskForAssign.assignedMember2;
             alert(`Task has been forwarded to ${targetMember}`);
+
+            // Trigger dashboard stats refresh
+            if (typeof onRefreshStats === 'function') {
+                onRefreshStats();
+            }
         } catch (error) {
             console.error("Forwarding error:", error);
             alert(`Error forwarding task: ${error.message}`);
@@ -733,39 +746,39 @@ export default function TaskList({
                         type={type}
                         lastTaskRef={lastTaskRef}
                     />
+
+                    {/* Infinite Scroll Footer */}
+                    {filteredTasks.length > 0 && (
+                        <div className="py-8 border-t border-gray-100">
+                            {loadingMore && (
+                                <div className="flex flex-col items-center justify-center space-y-2">
+                                    <RefreshCw className="w-8 h-8 text-blue-600 animate-spin" />
+                                    <p className="text-sm font-medium text-gray-600">Loading more tasks...</p>
+                                    <p className="text-xs text-gray-400">Please wait while we fetch the next batch</p>
+                                </div>
+                            )}
+
+                            {!(type === "completed" ? historyHasMore : pendingHasMore) && (
+                                <div className="flex flex-col items-center justify-center space-y-1">
+                                    <div className="w-12 h-1 bg-gray-200 rounded-full mb-2"></div>
+                                    <p className="text-sm font-medium text-gray-500">End of List</p>
+                                    <p className="text-xs text-gray-400">Total {filteredTasks.length} tasks matched</p>
+                                </div>
+                            )}
+
+                            {(type === "completed" ? historyHasMore : pendingHasMore) && !loadingMore && !loading && (
+                                <div className="flex justify-center">
+                                    <button
+                                        onClick={() => loadMoreTasks(type === "completed" ? "completed" : "pending")}
+                                        className="px-4 py-2 text-sm font-medium text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors"
+                                    >
+                                        Load More Tasks
+                                    </button>
+                                </div>
+                            )}
+                        </div>
+                    )}
                 </div>
-
-                {/* Infinite Scroll Footer */}
-                {filteredTasks.length > 0 && (
-                    <div className="py-8 border-t border-gray-100">
-                        {loadingMore && (
-                            <div className="flex flex-col items-center justify-center space-y-2">
-                                <RefreshCw className="w-8 h-8 text-blue-600 animate-spin" />
-                                <p className="text-sm font-medium text-gray-600">Loading more tasks...</p>
-                                <p className="text-xs text-gray-400">Please wait while we fetch the next batch</p>
-                            </div>
-                        )}
-
-                        {!(type === "completed" ? historyHasMore : pendingHasMore) && (
-                            <div className="flex flex-col items-center justify-center space-y-1">
-                                <div className="w-12 h-1 bg-gray-200 rounded-full mb-2"></div>
-                                <p className="text-sm font-medium text-gray-500">End of List</p>
-                                <p className="text-xs text-gray-400">Total {filteredTasks.length} tasks matched</p>
-                            </div>
-                        )}
-
-                        {(type === "completed" ? historyHasMore : pendingHasMore) && !loadingMore && !loading && (
-                            <div className="flex justify-center">
-                                <button
-                                    onClick={() => loadMoreTasks(type === "completed" ? "completed" : "pending")}
-                                    className="px-4 py-2 text-sm font-medium text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors"
-                                >
-                                    Load More Tasks
-                                </button>
-                            </div>
-                        )}
-                    </div>
-                )}
             </div>
 
             {/* Empty State */}

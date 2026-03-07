@@ -1,6 +1,7 @@
 import React from "react";
 import { FileText } from "lucide-react";
 import { formatDateToDDMMYY } from "../../../utils/dateFormatters";
+import ExpandableText from "../shared/ExpandableText";
 import { getStatusBadgeClass, getStatusText } from "./SubComponents";
 
 export default function MobileCards({
@@ -150,9 +151,9 @@ export default function MobileCards({
                                             formatDateToDDMMYY(task[column.key]) || "-"
                                         ) : column.key === "descriptionOfWork" ||
                                             column.key === "notes" ? (
-                                            <span className="break-words">
-                                                {task[column.key] || "-"}
-                                            </span>
+                                            <div className="mt-1">
+                                                <ExpandableText text={task[column.key]} />
+                                            </div>
                                         ) : (
                                             task[column.key] || "-"
                                         )}

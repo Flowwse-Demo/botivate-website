@@ -1,5 +1,6 @@
 import { Building2, Download as DownloadIcon, AlertCircle, User, Users, PieChart } from "lucide-react"
 import { getDeadlineStatus } from "./exportHelpers"
+import ExpandableText from "../shared/ExpandableText"
 
 export default function ReportTable({ stats, reportsData, exportToCSV }) {
   return (
@@ -24,7 +25,7 @@ export default function ReportTable({ stats, reportsData, exportToCSV }) {
             Shows how tasks are distributed between companies and persons
           </p>
         </div>
-        
+
         {Object.keys(stats.companyPersonDistribution).length === 0 ? (
           <div className="text-center py-12">
             <AlertCircle className="w-12 h-12 text-gray-400 mx-auto mb-4" />
@@ -44,13 +45,13 @@ export default function ReportTable({ stats, reportsData, exportToCSV }) {
               </thead>
               <tbody className="divide-y divide-gray-200">
                 {Object.entries(stats.companyPersonDistribution)
-                  .sort(([,a], [,b]) => Object.values(b).reduce((sum, val) => sum + val, 0) - Object.values(a).reduce((sum, val) => sum + val, 0))
+                  .sort(([, a], [, b]) => Object.values(b).reduce((sum, val) => sum + val, 0) - Object.values(a).reduce((sum, val) => sum + val, 0))
                   .map(([company, persons]) => {
                     const totalTasks = stats.byCompany[company] || 0
                     const todayTasks = reportsData.filter(task => task.party_name === company && getDeadlineStatus(task.planned3) === 'today').length
                     const upcomingTasks = reportsData.filter(task => task.party_name === company && getDeadlineStatus(task.planned3) === 'upcoming').length
                     const overdueTasks = reportsData.filter(task => task.party_name === company && getDeadlineStatus(task.planned3) === 'overdue').length
-                    
+
                     return (
                       <tr key={company} className="hover:bg-gray-50">
                         <td className="px-6 py-4">
@@ -77,7 +78,7 @@ export default function ReportTable({ stats, reportsData, exportToCSV }) {
                         <td className="px-6 py-4">
                           <div className="space-y-1">
                             {Object.entries(persons)
-                              .sort(([,a], [,b]) => b - a)
+                              .sort(([, a], [, b]) => b - a)
                               .map(([person, count]) => (
                                 <div key={person} className="flex items-center justify-between">
                                   <span className="text-gray-700">{person}</span>
@@ -134,7 +135,7 @@ export default function ReportTable({ stats, reportsData, exportToCSV }) {
             Shows how many pending tasks each person has and their companies
           </p>
         </div>
-        
+
         {Object.keys(stats.byPerson).length === 0 ? (
           <div className="text-center py-12">
             <AlertCircle className="w-12 h-12 text-gray-400 mx-auto mb-4" />
@@ -154,14 +155,14 @@ export default function ReportTable({ stats, reportsData, exportToCSV }) {
               </thead>
               <tbody className="divide-y divide-gray-200">
                 {Object.entries(stats.byPerson)
-                  .sort(([,a], [,b]) => b - a)
+                  .sort(([, a], [, b]) => b - a)
                   .map(([person, count]) => {
                     const personTasks = reportsData.filter(task => task.employee_name_1 === person || task.team_member_name === person)
                     const companies = [...new Set(personTasks.map(t => t.party_name).filter(Boolean))]
                     const todayTasks = personTasks.filter(t => getDeadlineStatus(t.planned3) === 'today').length
                     const upcomingTasks = personTasks.filter(t => getDeadlineStatus(t.planned3) === 'upcoming').length
                     const overdueTasks = personTasks.filter(t => getDeadlineStatus(t.planned3) === 'overdue').length
-                    
+
                     return (
                       <tr key={person} className="hover:bg-gray-50">
                         <td className="px-6 py-4">
@@ -196,8 +197,9 @@ export default function ReportTable({ stats, reportsData, exportToCSV }) {
                               {personTasks.slice(0, 3).map(task => task.task_no).filter(Boolean).join(', ')}
                               {personTasks.length > 3 && ` and ${personTasks.length - 3} more...`}
                             </div>
-                            <div className="text-xs text-gray-500 mt-1 truncate">
-                              Latest: {personTasks[0]?.description_of_work}
+                            <div className="text-xs text-gray-500 mt-1 flex">
+                              <span className="mr-1">Latest:</span>
+                              <div className="flex-1"><ExpandableText text={personTasks[0]?.description_of_work} /></div>
                             </div>
                           </div>
                         </td>
@@ -236,7 +238,7 @@ export default function ReportTable({ stats, reportsData, exportToCSV }) {
           </div>
           <div className="space-y-3">
             {Object.entries(stats.byCompany)
-              .sort(([,a], [,b]) => b - a)
+              .sort(([, a], [, b]) => b - a)
               .slice(0, 5)
               .map(([company, count]) => (
                 <div key={company} className="flex items-center justify-between">
@@ -263,7 +265,7 @@ export default function ReportTable({ stats, reportsData, exportToCSV }) {
           </div>
           <div className="space-y-3">
             {Object.entries(stats.byPerson)
-              .sort(([,a], [,b]) => b - a)
+              .sort(([, a], [, b]) => b - a)
               .slice(0, 5)
               .map(([person, count]) => (
                 <div key={person} className="flex items-center justify-between">

@@ -1,5 +1,6 @@
 import React from "react";
 import { AssignmentInput } from "./SubComponents";
+import ExpandableText from "../shared/ExpandableText";
 
 export default function TaskTable({
   displayedTasks,
@@ -225,8 +226,8 @@ export default function TaskTable({
                         </a>
                       ) : column.key === "descriptionOfWork" ||
                         column.key === "notes" ? (
-                        <div className="leading-relaxed break-words whitespace-normal">
-                          {task[column.key]}
+                        <div className="leading-relaxed break-words whitespace-normal w-full max-w-[250px] lg:max-w-[400px]">
+                          <ExpandableText text={task[column.key]} />
                         </div>
                       ) : (
                         task[column.key]
@@ -296,9 +297,9 @@ export default function TaskTable({
                           </a>
                         ) : column.key === "descriptionOfWork" ||
                           column.key === "notes" ? (
-                          <span className="break-words">
-                            {task[column.key] || "-"}
-                          </span>
+                          <div className="leading-relaxed break-words whitespace-normal w-full max-w-[250px] lg:max-w-[400px]">
+                            <ExpandableText text={task[column.key] || "-"} />
+                          </div>
                         ) : (
                           task[column.key] || "-"
                         )}

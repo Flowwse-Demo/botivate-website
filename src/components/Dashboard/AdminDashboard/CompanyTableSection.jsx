@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { formatDate } from "../../../utils/dateFormatters";
+import ExpandableText from "../shared/ExpandableText";
 
 // Company Table Component for Supabase
 export default function CompanyTableSection({ companyData, supabaseData, filters }) {
@@ -114,8 +115,8 @@ export default function CompanyTableSection({ companyData, supabaseData, filters
                       </div>
                     </td>
                     <td className="px-4 py-4">
-                      <div className="max-w-xs text-sm text-gray-900 truncate">
-                        {item.description_of_work || "N/A"}
+                      <div className="max-w-xs text-sm text-gray-900">
+                        <ExpandableText text={item.description_of_work || "N/A"} />
                       </div>
                     </td>
                     <td className="px-4 py-4 whitespace-nowrap">
@@ -210,7 +211,7 @@ export default function CompanyTableSection({ companyData, supabaseData, filters
                       Description:
                     </span>
                     <div className="text-sm text-gray-900">
-                      {item.description_of_work || "N/A"}
+                      <ExpandableText text={item.description_of_work || "N/A"} />
                     </div>
                   </div>
 

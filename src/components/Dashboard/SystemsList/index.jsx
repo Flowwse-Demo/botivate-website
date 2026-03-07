@@ -1,5 +1,5 @@
 "use client"
-import { useState, useEffect, useMemo, useCallback } from "react"
+import { useState, useEffect, useMemo, useCallback, useRef } from "react"
 import { motion } from "framer-motion"
 import {
   Search,
@@ -11,11 +11,16 @@ import {
 } from "lucide-react"
 
 import Button from "../../ui/Button"
+
+import ExpandableText from "../shared/ExpandableText";
 import { getStatusColor } from "../../../utils/statusHelpers"
 import SystemDetailsModal from "./SystemDetailsModal"
 import { useCalculateTotalUpdate, useTotalUpdate } from "./hooks"
 import { dataCache, isQuickCacheValid, fetchSupabaseDataCached } from "./cache"
 import { processSystemsData } from "./dataProcessing"
+import supabase from "../../../supabaseClient"
+
+const PAGE_SIZE = 50
 
 export default function SystemsList({ userRole: propUserRole, companyData }) {
   const [searchTerm, setSearchTerm] = useState("")
@@ -26,7 +31,7 @@ export default function SystemsList({ userRole: propUserRole, companyData }) {
   const [selectedSystem, setSelectedSystem] = useState(null)
   const [showSystemModal, setShowSystemModal] = useState(false)
   const [systems, setSystems] = useState([])
- 
+
   const [companyName, setCompanyName] = useState(companyData?.companyName || "")
   const [userRole, setUserRole] = useState(propUserRole || "company")
   const [activeTab, setActiveTab] = useState("inprogress")
@@ -36,31 +41,88 @@ export default function SystemsList({ userRole: propUserRole, companyData }) {
   const [pendingData, setPendingData] = useState([])
   const [completeData, setCompleteData] = useState([])
 
+  // Pagination state
+  const [pendingPage, setPendingPage] = useState(0)
+  const [completedPage, setCompletedPage] = useState(0)
+  const [pendingHasMore, setPendingHasMore] = useState(true)
+  const [completedHasMore, setCompletedHasMore] = useState(true)
+  const [loadingMore, setLoadingMore] = useState(false)
+  const observer = useRef()
+  const [pendingTotal, setPendingTotal] = useState(0)
+  const [completedTotal, setCompletedTotal] = useState(0)
+  const [totalCount, setTotalCount] = useState(0)
+
   const { getTotalUpdate, getUpdateData } = useCalculateTotalUpdate(completeData);
 
+  // Fetch counts efficiently (head: true)
+  const fetchCounts = async () => {
+    try {
+      const [pendingResult, completedResult, totalResult] = await Promise.all([
+        supabase.from("FMS").select("*", { count: "exact", head: true }).is("actual3", null),
+        supabase.from("FMS").select("*", { count: "exact", head: true }).not("actual3", "is", null).ilike("type_of_work", "new system"),
+        supabase.from("FMS").select("*", { count: "exact", head: true }),
+      ])
+      setPendingTotal(pendingResult.count || 0)
+      setCompletedTotal(completedResult.count || 0)
+      setTotalCount(totalResult.count || 0)
+    } catch (err) {
+      console.error("Error fetching counts:", err)
+    }
+  }
+
+  // Paginated fetch for a specific type
+  const fetchPagedData = async (type, page, isLoadMore = false) => {
+    const from = page * PAGE_SIZE
+    const to = from + PAGE_SIZE - 1
+
+    let query = supabase.from("FMS").select("*")
+
+    if (type === "pending") {
+      query = query.is("actual3", null)
+    } else {
+      query = query.not("actual3", "is", null).ilike("type_of_work", "new system")
+    }
+
+    const { data, error } = await query.order("id", { ascending: false }).range(from, to)
+    if (error) throw error
+
+    const rows = (data || []).map(row => ({
+      ...row,
+      status: type === "pending" ? "Pending" : "Completed"
+    }))
+
+    if (type === "pending") {
+      if (isLoadMore) {
+        setPendingData(prev => [...prev, ...rows])
+      } else {
+        setPendingData(rows)
+        setPendingPage(0)
+      }
+      setPendingHasMore(rows.length === PAGE_SIZE)
+    } else {
+      if (isLoadMore) {
+        setCompleteData(prev => [...prev, ...rows])
+      } else {
+        setCompleteData(rows)
+        setCompletedPage(0)
+      }
+      setCompletedHasMore(rows.length === PAGE_SIZE)
+    }
+
+    return rows
+  }
+
+  // Initial fetch
   useEffect(() => {
-    const fetchFmsData = async (filter = "all") => {
+    const fetchInitial = async () => {
       try {
         setLoading(true)
         setError(null)
-
-        const { data, error } = await fetchSupabaseDataCached("FMS")
-        if (error) throw error
-
-        const pending = []
-        const complete = []
-
-        data.forEach(row => {
-          if (row.actual3) { 
-            complete.push({ ...row, status: "Completed" }) 
-          } else { 
-            pending.push({ ...row, status: "Pending" }) 
-          } 
-        })
-
-        setPendingData(pending)
-        setCompleteData(complete)
-        setFmsData(data)
+        await fetchCounts()
+        await Promise.all([
+          fetchPagedData("pending", 0),
+          fetchPagedData("completed", 0),
+        ])
       } catch (err) {
         setError(err.message)
         console.error("Error fetching FMS data:", err)
@@ -68,9 +130,43 @@ export default function SystemsList({ userRole: propUserRole, companyData }) {
         setLoading(false)
       }
     }
-
-    fetchFmsData("all")
+    fetchInitial()
   }, [])
+
+  // Load more function
+  const loadMoreData = useCallback(async (type) => {
+    const currentPage = type === "pending" ? pendingPage : completedPage
+    const nextPage = currentPage + 1
+    setLoadingMore(true)
+    try {
+      await fetchPagedData(type, nextPage, true)
+      if (type === "pending") {
+        setPendingPage(nextPage)
+      } else {
+        setCompletedPage(nextPage)
+      }
+    } catch (err) {
+      console.error("Error loading more:", err)
+    } finally {
+      setLoadingMore(false)
+    }
+  }, [pendingPage, completedPage])
+
+  // Infinite scroll observer
+  const lastRowRef = useCallback(node => {
+    if (loading || loadingMore) return
+    if (observer.current) observer.current.disconnect()
+
+    const currentType = activeTab === "completed" ? "completed" : "pending"
+    const hasMore = currentType === "pending" ? pendingHasMore : completedHasMore
+
+    observer.current = new IntersectionObserver(entries => {
+      if (entries[0].isIntersecting && hasMore) {
+        loadMoreData(currentType)
+      }
+    })
+    if (node) observer.current.observe(node)
+  }, [loading, loadingMore, activeTab, pendingHasMore, completedHasMore, loadMoreData])
 
   useEffect(() => {
     if (propUserRole) {
@@ -102,7 +198,7 @@ export default function SystemsList({ userRole: propUserRole, companyData }) {
       const [systemData] = await Promise.all([
         fetchSupabaseDataCached("FMS")
       ])
-      
+
       const processedSystems = processSystemsData(systemData, userRole, companyName)
 
       dataCache.quickCache = {
@@ -125,17 +221,13 @@ export default function SystemsList({ userRole: propUserRole, companyData }) {
     return () => clearInterval(interval)
   }, [fetchSystemsData])
 
-  const completedDataForTable = completeData.filter(
-    row => (row.type_of_work || "").toLowerCase() === "new system"
-  )
-
   const filteredPending = userRole === "company"
     ? pendingData.filter(row => row.party_name === companyData?.companyName)
     : pendingData
 
   const filteredCompleted = userRole === "company"
-    ? completedDataForTable.filter(row => row.party_name === companyData?.companyName)
-    : completedDataForTable
+    ? completeData.filter(row => row.party_name === companyData?.companyName)
+    : completeData
 
   const currentSystems = activeTab === "inprogress"
     ? filteredPending
@@ -201,11 +293,11 @@ export default function SystemsList({ userRole: propUserRole, companyData }) {
   const handleViewSystem = useCallback((system) => {
     const totalUpdates = getTotalUpdate(system);
     const updateData = getUpdateData(system);
-    
-    setSelectedSystem({ 
-      ...system, 
+
+    setSelectedSystem({
+      ...system,
       totalUpdates,
-      updateData 
+      updateData
     });
     setShowSystemModal(true);
   }, [getTotalUpdate, getUpdateData]);
@@ -273,15 +365,15 @@ export default function SystemsList({ userRole: propUserRole, companyData }) {
           <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-6">
             <div className="text-center">
               <div className="text-sm text-gray-500">In Progress</div>
-              <div className="text-lg font-semibold text-yellow-600">{pendingData.length}</div>
+              <div className="text-lg font-semibold text-yellow-600">{pendingTotal}</div>
             </div>
             <div className="text-center">
               <div className="text-sm text-gray-500">Completed</div>
-              <div className="text-lg font-semibold text-green-600">{completeData.length}</div>
+              <div className="text-lg font-semibold text-green-600">{completedTotal}</div>
             </div>
             <div className="text-center">
               <div className="text-sm text-gray-500">Total</div>
-              <div className="text-lg font-semibold text-blue-600">{fmsData.length}</div>
+              <div className="text-lg font-semibold text-blue-600">{totalCount}</div>
             </div>
           </div>
         </div>
@@ -359,190 +451,192 @@ export default function SystemsList({ userRole: propUserRole, companyData }) {
           </div>
         </div>
 
-        {/* Desktop Table View */}
-       <div className="hidden sm:block overflow-x-auto relative" style={{ maxHeight: '70vh' }}>
-  <table className="min-w-full divide-y divide-gray-200">
-   <thead className="bg-gray-50 sticky top-0 z-10">
-  <tr>
-    <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-16">
-      S.No.
-    </th>
+        <div style={{ maxHeight: '70vh', overflowY: 'auto' }}>
+          {/* Desktop Table View */}
+          <div className="hidden sm:block overflow-x-auto relative">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50 sticky top-0 z-10">
+                <tr>
+                  <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-16">
+                    S.No.
+                  </th>
 
-    {/* Actions column only in Completed */}
-    {activeTab === "completed" && (
-      <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-24">
-        Actions
-      </th>
-    )}
+                  {/* Actions column only in Completed */}
+                  {activeTab === "completed" && (
+                    <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-24">
+                      Actions
+                    </th>
+                  )}
 
-    {(userRole === "admin" || userRole === "company") && (
-      <th
-        className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 w-48"
-        onClick={() => handleSort("systemName")}
-      >
-        <div className="flex items-center space-x-1">
-          <span>System Name</span>
-          {sortField === "systemName" && <span>{sortDirection === "asc" ? "↑" : "↓"}</span>}
-        </div>
-      </th>
-    )}
+                  {(userRole === "admin" || userRole === "company") && (
+                    <th
+                      className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 w-48"
+                      onClick={() => handleSort("systemName")}
+                    >
+                      <div className="flex items-center space-x-1">
+                        <span>System Name</span>
+                        {sortField === "systemName" && <span>{sortDirection === "asc" ? "↑" : "↓"}</span>}
+                      </div>
+                    </th>
+                  )}
 
-    {userRole === "admin" && (
-      <th
-        className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 w-40"
-        onClick={() => handleSort("partyName")}
-      >
-        <div className="flex items-center space-x-1">
-          <span>Party Name</span>
-          {sortField === "partyName" && <span>{sortDirection === "asc" ? "↑" : "↓"}</span>}
-        </div>
-      </th>
-    )}
+                  {userRole === "admin" && (
+                    <th
+                      className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 w-40"
+                      onClick={() => handleSort("partyName")}
+                    >
+                      <div className="flex items-center space-x-1">
+                        <span>Party Name</span>
+                        {sortField === "partyName" && <span>{sortDirection === "asc" ? "↑" : "↓"}</span>}
+                      </div>
+                    </th>
+                  )}
 
-    <th
-      className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 w-40"
-      onClick={() => handleSort("departmentName")}
-    >
-      <div className="flex items-center space-x-1">
-        <span>Department Name</span>
-        {sortField === "departmentName" && <span>{sortDirection === "asc" ? "↑" : "↓"}</span>}
-      </div>
-    </th>
-
-    <th
-      className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 w-36"
-      onClick={() => handleSort("typeOfSystem")}
-    >
-      <div className="flex items-center space-x-1">
-        <span>Type of System</span>
-        {sortField === "typeOfSystem" && <span>{sortDirection === "asc" ? "↑" : "↓"}</span>}
-      </div>
-    </th>
-
-    <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-28">
-      Status
-    </th>
-
-    {/* Total Updation only in Completed */}
-    {activeTab === "completed" && (
-      <th
-        className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 w-32"
-        onClick={() => handleSort("totalUpdation")}
-      >
-        <div className="flex items-center space-x-1">
-          <span>Total Updation</span>
-          {sortField === "totalUpdation" && <span>{sortDirection === "asc" ? "↑" : "↓"}</span>}
-        </div>
-      </th>
-    )}
-  </tr>
-</thead>
-
-    <tbody className="bg-white divide-y divide-gray-200">
-      {sortedSystems.length === 0 ? (
-        <tr>
-          <td colSpan={userRole === "admin" ? "9" : "8"} className="px-6 py-12 text-center">
-            <div className="flex flex-col items-center space-y-2">
-              {activeTab === 'inprogress' ? (
-                <Clock className="w-12 h-12 text-gray-400" />
-              ) : (
-                <CheckCircle className="w-12 h-12 text-gray-400" />
-              )}
-              <h3 className="text-gray-900 font-medium text-base">
-                No {activeTab === 'inprogress' ? 'in progress' : activeTab} systems found
-              </h3>
-              <p className="text-gray-500 text-sm">No systems match your current filters.</p>
-            </div>
-          </td>
-        </tr>
-      ) : (
-        filteredSystems.map((system, index) => (
-          <motion.tr
-            key={system.id}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: index * 0.1 }}
-            className="hover:bg-gray-50"
-          >
-            <td className="px-3 py-4 w-16">
-              <div className="text-sm font-medium text-gray-900">{index + 1}</div>
-            </td>
-        {activeTab === "completed" && (
-  <td className="px-3 py-4 w-24">
-    <div className="flex items-center">
-      <Button
-        onClick={() => handleViewSystem(system)}
-        variant="outline"
-        className="flex items-center bg-transparent border-blue-300 text-blue-600 hover:bg-blue-50 px-2 py-1 text-xs"
-      >
-        <span>View</span>
-      </Button>
-    </div>
-  </td>
-)}
-            {(userRole === "admin" || userRole === "company") && (
-              <td className="px-3 py-4 w-48">
-                <div className="flex items-start">
-                  <div className="flex-shrink-0 h-8 w-8 mt-1">
-                    <div className="h-8 w-8 rounded-lg bg-gradient-to-r from-blue-500 to-purple-500 flex items-center justify-center">
-                      <Server className="h-4 w-4 text-white" />
+                  <th
+                    className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 w-40"
+                    onClick={() => handleSort("departmentName")}
+                  >
+                    <div className="flex items-center space-x-1">
+                      <span>Department Name</span>
+                      {sortField === "departmentName" && <span>{sortDirection === "asc" ? "↑" : "↓"}</span>}
                     </div>
-                  </div>
-                  <div className="ml-3 min-w-0 flex-1">
-                    <div className="text-sm font-medium text-gray-900 break-words leading-relaxed" title={system.system_name}>
-                      {system.system_name}
-                    </div>
-                    <div className="text-xs text-gray-500 break-words">{system.developer || 'System Admin'}</div>
-                  </div>
-                </div>
-              </td>
-            )}
-            {userRole === "admin" && (
-              <td className="px-3 py-4 w-40">
-                <div className="text-sm text-gray-900 break-words" title={system.party_name}>
-                  <div className="line-clamp-2">
-                    {system.party_name}
-                  </div>
-                </div>
-              </td>
-            )}
-            <td className="px-3 py-4 w-40">
-              <div className="text-sm text-gray-900 break-words leading-relaxed" title={system.description_of_work}>
-                {system.description_of_work}
-              </div>
-            </td>
-            <td className="px-3 py-4 w-36">
-              <div className="text-sm text-gray-900 break-words" title={system.type_of_work}>
-                <div className="line-clamp-2">
-                  {system.type_of_work}
-                </div>
-              </div>
-            </td>
-            <td className="px-3 py-4 w-28">
-              <div className="flex items-center">
-                {getStatusIcon(system.status)}
-                <span
-                  className={`ml-1 inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(system.status)}`}
-                >
-                  {system.status || 'In Progress'}
-                </span>
-              </div>
-            </td>
-         {activeTab === "completed" && (
-  <td className="px-3 py-4 w-32">
-    <div className="text-sm text-gray-900">
-      {getTotalUpdate(system)}
-    </div>
-  </td>
-)}
-          </motion.tr>
-        ))
-      )}
-    </tbody>
-  </table>
-</div>
+                  </th>
 
-        <style jsx>{`
+                  <th
+                    className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 w-36"
+                    onClick={() => handleSort("typeOfSystem")}
+                  >
+                    <div className="flex items-center space-x-1">
+                      <span>Type of System</span>
+                      {sortField === "typeOfSystem" && <span>{sortDirection === "asc" ? "↑" : "↓"}</span>}
+                    </div>
+                  </th>
+
+                  <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-28">
+                    Status
+                  </th>
+
+                  {/* Total Updation only in Completed */}
+                  {activeTab === "completed" && (
+                    <th
+                      className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 w-32"
+                      onClick={() => handleSort("totalUpdation")}
+                    >
+                      <div className="flex items-center space-x-1">
+                        <span>Total Updation</span>
+                        {sortField === "totalUpdation" && <span>{sortDirection === "asc" ? "↑" : "↓"}</span>}
+                      </div>
+                    </th>
+                  )}
+                </tr>
+              </thead>
+
+              <tbody className="bg-white divide-y divide-gray-200">
+                {sortedSystems.length === 0 ? (
+                  <tr>
+                    <td colSpan={userRole === "admin" ? "9" : "8"} className="px-6 py-12 text-center">
+                      <div className="flex flex-col items-center space-y-2">
+                        {activeTab === 'inprogress' ? (
+                          <Clock className="w-12 h-12 text-gray-400" />
+                        ) : (
+                          <CheckCircle className="w-12 h-12 text-gray-400" />
+                        )}
+                        <h3 className="text-gray-900 font-medium text-base">
+                          No {activeTab === 'inprogress' ? 'in progress' : activeTab} systems found
+                        </h3>
+                        <p className="text-gray-500 text-sm">No systems match your current filters.</p>
+                      </div>
+                    </td>
+                  </tr>
+                ) : (
+                  filteredSystems.map((system, index) => (
+                    <motion.tr
+                      key={system.id}
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: Math.min(index, 10) * 0.05 }}
+                      className="hover:bg-gray-50"
+                      ref={index === filteredSystems.length - 1 ? lastRowRef : null}
+                    >
+                      <td className="px-3 py-4 w-16">
+                        <div className="text-sm font-medium text-gray-900">{index + 1}</div>
+                      </td>
+                      {activeTab === "completed" && (
+                        <td className="px-3 py-4 w-24">
+                          <div className="flex items-center">
+                            <Button
+                              onClick={() => handleViewSystem(system)}
+                              variant="outline"
+                              className="flex items-center bg-transparent border-blue-300 text-blue-600 hover:bg-blue-50 px-2 py-1 text-xs"
+                            >
+                              <span>View</span>
+                            </Button>
+                          </div>
+                        </td>
+                      )}
+                      {(userRole === "admin" || userRole === "company") && (
+                        <td className="px-3 py-4 w-48">
+                          <div className="flex items-start">
+                            <div className="flex-shrink-0 h-8 w-8 mt-1">
+                              <div className="h-8 w-8 rounded-lg bg-gradient-to-r from-blue-500 to-purple-500 flex items-center justify-center">
+                                <Server className="h-4 w-4 text-white" />
+                              </div>
+                            </div>
+                            <div className="ml-3 min-w-0 flex-1">
+                              <div className="text-sm font-medium text-gray-900 break-words leading-relaxed" title={system.system_name}>
+                                {system.system_name}
+                              </div>
+                              <div className="text-xs text-gray-500 break-words">{system.developer || 'System Admin'}</div>
+                            </div>
+                          </div>
+                        </td>
+                      )}
+                      {userRole === "admin" && (
+                        <td className="px-3 py-4 w-40">
+                          <div className="text-sm text-gray-900 break-words" title={system.party_name}>
+                            <div className="line-clamp-2">
+                              {system.party_name}
+                            </div>
+                          </div>
+                        </td>
+                      )}
+                      <td className="px-3 py-4 w-40">
+                        <div className="text-sm text-gray-900 break-words leading-relaxed">
+                          <ExpandableText text={system.description_of_work} />
+                        </div>
+                      </td>
+                      <td className="px-3 py-4 w-36">
+                        <div className="text-sm text-gray-900 break-words" title={system.type_of_work}>
+                          <div className="line-clamp-2">
+                            {system.type_of_work}
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-3 py-4 w-28">
+                        <div className="flex items-center">
+                          {getStatusIcon(system.status)}
+                          <span
+                            className={`ml-1 inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(system.status)}`}
+                          >
+                            {system.status || 'In Progress'}
+                          </span>
+                        </div>
+                      </td>
+                      {activeTab === "completed" && (
+                        <td className="px-3 py-4 w-32">
+                          <div className="text-sm text-gray-900">
+                            {getTotalUpdate(system)}
+                          </div>
+                        </td>
+                      )}
+                    </motion.tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          <style jsx>{`
   .line-clamp-2 {
     display: -webkit-box;
     -webkit-line-clamp: 2;
@@ -553,101 +647,132 @@ export default function SystemsList({ userRole: propUserRole, companyData }) {
   }
 `}</style>
 
-      {/* Mobile Card View */}
-<div className="sm:hidden" style={{ maxHeight: '70vh', overflowY: 'auto' }}>
-  {sortedSystems.length === 0 ? (
-    <div className="px-4 py-12 text-center">
-      <div className="flex flex-col items-center space-y-2">
-        {activeTab === 'inprogress' ? (
-          <Clock className="w-8 h-8 text-gray-400" />
-        ) : (
-          <CheckCircle className="w-8 h-8 text-gray-400" />
-        )}
-        <h3 className="text-gray-900 font-medium text-sm">
-          No {activeTab === 'inprogress' ? 'in progress' : activeTab} systems found
-        </h3>
-        <p className="text-gray-500 text-xs">No systems match your current filters.</p>
-      </div>
-    </div>
-  ) : (
-    <div className="space-y-3 p-3">
-      {filteredSystems.map((system, index) => (
-        <motion.div
-          key={system.id}
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: index * 0.1 }}
-          className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm hover:shadow-md transition-shadow"
-        >
-          {/* Header with S.No and Status */}
-          <div className="flex justify-between items-start mb-3">
-            <div className="flex items-center space-x-2">
-              <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-xs font-medium">
-                #{system.sno}
-              </span>
-              <div className="flex items-center">
-                {getStatusIcon(system.status)}
-                <span
-                  className={`ml-1 inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(system.status)}`}
-                >
-                  {system.status || 'Progress'}
-                </span>
+          {/* Mobile Card View */}
+          <div className="sm:hidden">
+            {sortedSystems.length === 0 ? (
+              <div className="px-4 py-12 text-center">
+                <div className="flex flex-col items-center space-y-2">
+                  {activeTab === 'inprogress' ? (
+                    <Clock className="w-8 h-8 text-gray-400" />
+                  ) : (
+                    <CheckCircle className="w-8 h-8 text-gray-400" />
+                  )}
+                  <h3 className="text-gray-900 font-medium text-sm">
+                    No {activeTab === 'inprogress' ? 'in progress' : activeTab} systems found
+                  </h3>
+                  <p className="text-gray-500 text-xs">No systems match your current filters.</p>
+                </div>
               </div>
-            </div>
-            <div className="text-right">
-              <div className="text-xs text-gray-500">Updates</div>
-              <div className="text-sm font-semibold text-gray-900">{system.total_updation}</div>
-            </div>
-          </div>
+            ) : (
+              <div className="space-y-3 p-3">
+                {filteredSystems.map((system, index) => (
+                  <motion.div
+                    key={system.id}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: index * 0.1 }}
+                    className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm hover:shadow-md transition-shadow"
+                  >
+                    {/* Header with S.No and Status */}
+                    <div className="flex justify-between items-start mb-3">
+                      <div className="flex items-center space-x-2">
+                        <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-xs font-medium">
+                          #{system.sno}
+                        </span>
+                        <div className="flex items-center">
+                          {getStatusIcon(system.status)}
+                          <span
+                            className={`ml-1 inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(system.status)}`}
+                          >
+                            {system.status || 'Progress'}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <div className="text-xs text-gray-500">Updates</div>
+                        <div className="text-sm font-semibold text-gray-900">{system.total_updation}</div>
+                      </div>
+                    </div>
 
-          {/* System Info */}
-          <div className="space-y-2 mb-3">
-            {userRole === "admin" && (
-              <div className="flex items-center space-x-3">
-                <div className="h-8 w-8 rounded-lg bg-gradient-to-r from-blue-500 to-purple-500 flex items-center justify-center">
-                  <Server className="h-4 w-4 text-white" />
-                </div>
-                <div>
-                  <h4 className="font-semibold text-blue-600 text-sm">{system.system_name}</h4>
-                  <p className="text-xs text-gray-500">{system.developer || 'System Admin'}</p>
-                </div>
+                    {/* System Info */}
+                    <div className="space-y-2 mb-3">
+                      {userRole === "admin" && (
+                        <div className="flex items-center space-x-3">
+                          <div className="h-8 w-8 rounded-lg bg-gradient-to-r from-blue-500 to-purple-500 flex items-center justify-center">
+                            <Server className="h-4 w-4 text-white" />
+                          </div>
+                          <div>
+                            <h4 className="font-semibold text-blue-600 text-sm">{system.system_name}</h4>
+                            <p className="text-xs text-gray-500">{system.developer || 'System Admin'}</p>
+                          </div>
+                        </div>
+                      )}
+
+                      <div>
+                        <p className="text-xs text-gray-600">
+                          <span className="font-medium">Party:</span> {system.party_name}
+                        </p>
+                        <div className="text-xs text-gray-600 flex">
+                          <span className="font-medium mr-1">Department:</span>
+                          <div className="flex-1 mt-0.5"><ExpandableText text={system.description_of_work} /></div>
+                        </div>
+                        <p className="text-xs text-gray-600">
+                          <span className="font-medium">Type:</span>
+                          <span className="text-green-600 font-medium ml-1">{system.type_of_work}</span>
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Bottom Info */}
+                    <div className="flex justify-between items-center pt-3 border-t border-gray-100">
+                      <div>
+                        <p className="text-xs text-gray-500">
+                          <span className="font-medium">Flowchart:</span> {system.flowchart}
+                        </p>
+                      </div>
+                      <Button
+                        onClick={() => handleViewSystem(system)}
+                        variant="outline"
+                        className="flex items-center space-x-1 bg-transparent border-blue-300 text-blue-600 hover:bg-blue-50 px-3 py-1 text-xs"
+                      >
+                        <span>View</span>
+                      </Button>
+                    </div>
+                  </motion.div>
+                ))}
               </div>
             )}
-
-            <div>
-              <p className="text-xs text-gray-600">
-                <span className="font-medium">Party:</span> {system.party_name}
-              </p>
-              <p className="text-xs text-gray-600">
-                <span className="font-medium">Department:</span> {system.description_of_work}
-              </p>
-              <p className="text-xs text-gray-600">
-                <span className="font-medium">Type:</span>
-                <span className="text-green-600 font-medium ml-1">{system.type_of_work}</span>
-              </p>
-            </div>
           </div>
 
-          {/* Bottom Info */}
-          <div className="flex justify-between items-center pt-3 border-t border-gray-100">
-            <div>
-              <p className="text-xs text-gray-500">
-                <span className="font-medium">Flowchart:</span> {system.flowchart}
-              </p>
+          {/* Pagination Footer */}
+          {filteredSystems.length > 0 && (
+            <div className="py-6 border-t border-gray-100">
+              {loadingMore && (
+                <div className="flex flex-col items-center justify-center space-y-2">
+                  <Loader className="w-6 h-6 text-blue-600 animate-spin" />
+                  <p className="text-sm font-medium text-gray-600">Loading more...</p>
+                </div>
+              )}
+              {!(activeTab === "completed" ? completedHasMore : pendingHasMore) && (
+                <div className="flex flex-col items-center justify-center space-y-1">
+                  <div className="w-12 h-1 bg-gray-200 rounded-full mb-2"></div>
+                  <p className="text-sm font-medium text-gray-500">End of List</p>
+                  <p className="text-xs text-gray-400">Total {filteredSystems.length} systems loaded</p>
+                </div>
+              )}
+              {(activeTab === "completed" ? completedHasMore : pendingHasMore) && !loadingMore && !loading && (
+                <div className="flex justify-center">
+                  <button
+                    onClick={() => loadMoreData(activeTab === "completed" ? "completed" : "pending")}
+                    className="px-4 py-2 text-sm font-medium text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors"
+                  >
+                    Load More Systems
+                  </button>
+                </div>
+              )}
             </div>
-            <Button
-              onClick={() => handleViewSystem(system)}
-              variant="outline"
-              className="flex items-center space-x-1 bg-transparent border-blue-300 text-blue-600 hover:bg-blue-50 px-3 py-1 text-xs"
-            >
-              <span>View</span>
-            </Button>
-          </div>
-        </motion.div>
-      ))}
-    </div>
-  )}
-</div>
+          )}
+        </div>
       </div>
 
       {/* System Details Modal */}

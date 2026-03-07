@@ -1,7 +1,8 @@
 import React from "react";
 import { FileText } from "lucide-react";
 import { formatDateToDDMMYY } from "../../../utils/dateFormatters";
-import { getStatusBadgeClass, getStatusText } from "./SubComponents";
+import { getPriorityColor, getStatusBadgeClass, getStatusText } from "./SubComponents";
+import ExpandableText from "../shared/ExpandableText";
 
 export default function TaskTable({
     filteredTasks,
@@ -72,7 +73,8 @@ export default function TaskTable({
                         {filteredColumns.map(column => (
                             <th
                                 key={column.key}
-                                className="px-4 py-3 text-xs font-medium text-left text-gray-500 uppercase bg-gray-50"
+                                className={`px-4 py-3 text-xs font-medium text-left text-gray-500 uppercase bg-gray-50 ${column.key === "descriptionOfWork" ? "min-w-[300px] max-w-[400px]" : ""
+                                    }`}
                             >
                                 {column.label}
                             </th>
@@ -222,8 +224,8 @@ export default function TaskTable({
                                     ) : ["descriptionOfWork", "notes"].includes(
                                         column.key
                                     ) ? (
-                                        <div className="inline-block bg-gray-50 text-gray-800 px-2 py-1 rounded break-words whitespace-pre-wrap max-w-[400px] overflow-hidden">
-                                            {task[column.key]}
+                                        <div className="w-full max-w-[250px] lg:max-w-[400px] mt-1 leading-relaxed break-words whitespace-normal">
+                                            <ExpandableText text={task[column.key]} />
                                         </div>
                                     ) : (
                                         task[column.key]

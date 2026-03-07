@@ -233,9 +233,9 @@ export default function AdminDashboard({
         return <AssignTaskForm onTaskCreated={handleTaskCreated} userRole={userRole} />;
       }
       case "tasks-table":
-        return <TasksTable tasks={tasks} />;
+        return <TasksTable tasks={tasks} onRefreshStats={fetchTaskCounts} />;
       case "developer-stage":
-        return <DeveloperStagePage />;
+        return <DeveloperStagePage onRefreshStats={fetchTaskCounts} />;
       case "pending-tasks":
         return (
           <TaskList
@@ -243,6 +243,7 @@ export default function AdminDashboard({
             userFilterData={userFilterData}
             companyData={companyData}
             supabaseData={supabaseData}
+            onRefreshStats={fetchTaskCounts}
           />
         );
       case "completed-tasks":
@@ -252,6 +253,7 @@ export default function AdminDashboard({
             userFilterData={userFilterData}
             companyData={companyData}
             supabaseData={supabaseData}
+            onRefreshStats={fetchTaskCounts}
           />
         );
       case "troubleshoot":

@@ -23,7 +23,7 @@ import { fetchTasksFromAPI, fetchInitialData, submitAssignments } from "./taskAp
 
 const PAGE_SIZE = 50;
 
-export default function DeveloperStagePage() {
+export default function DeveloperStagePage({ onRefreshStats }) {
   const [searchTerm, setSearchTerm] = useState("");
   const [filterPostedBy, setFilterPostedBy] = useState("all");
   const [loading, setLoading] = useState(false);
@@ -205,6 +205,11 @@ export default function DeveloperStagePage() {
         setSelectedTasks(new Set());
         setAssignmentForm({});
         loadInitialTasks();
+
+        // Trigger dashboard stats refresh
+        if (typeof onRefreshStats === 'function') {
+          onRefreshStats();
+        }
       }
 
       if (errorCount > 0) {
@@ -251,30 +256,6 @@ export default function DeveloperStagePage() {
 
   return (
     <div className="space-y-6">
-      {/* Header Stats */}
-      <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
-        <StatsCard
-          title="Total Tasks"
-          count={pendingCount + historyCount}
-          description="All tasks loaded"
-          icon={Target}
-          color="text-blue-600"
-        />
-        <StatsCard
-          title="Pending Tasks"
-          count={pendingCount}
-          description="Ready for assignment"
-          icon={Clock}
-          color="text-orange-600"
-        />
-        <StatsCard
-          title="History Tasks"
-          count={historyCount}
-          description="Completed assignments"
-          icon={History}
-          color="text-purple-600"
-        />
-      </div>
 
       {loading && <LoadingIndicator message="Refreshing task data..." />}
       {error && <ErrorMessage error={error} />}
@@ -442,39 +423,39 @@ export default function DeveloperStagePage() {
               lastTaskElementRef={lastTaskElementRef}
             />
           )}
+
+          {/* Infinite Scroll Footer */}
+          {displayedTasks.length > 0 && (
+            <div className="py-8 border-t border-gray-100">
+              {loadingMore && (
+                <div className="flex flex-col items-center justify-center space-y-2">
+                  <RefreshCw className="w-8 h-8 text-blue-600 animate-spin" />
+                  <p className="text-sm font-medium text-gray-600">Loading more tasks...</p>
+                  <p className="text-xs text-gray-400">Please wait while we fetch the next batch</p>
+                </div>
+              )}
+
+              {!currentHasMore && (
+                <div className="flex flex-col items-center justify-center space-y-1">
+                  <div className="w-12 h-1 bg-gray-200 rounded-full mb-2"></div>
+                  <p className="text-sm font-medium text-gray-500">End of List</p>
+                  <p className="text-xs text-gray-400">Total {displayedTasks.length} tasks matched</p>
+                </div>
+              )}
+
+              {currentHasMore && !loadingMore && !loading && (
+                <div className="flex justify-center">
+                  <button
+                    onClick={() => loadMoreTasks(activeTab)}
+                    className="px-4 py-2 text-sm font-medium text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors"
+                  >
+                    Load More Tasks
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
         </div>
-
-        {/* Infinite Scroll Footer */}
-        {displayedTasks.length > 0 && (
-          <div className="py-8 border-t border-gray-100">
-            {loadingMore && (
-              <div className="flex flex-col items-center justify-center space-y-2">
-                <RefreshCw className="w-8 h-8 text-blue-600 animate-spin" />
-                <p className="text-sm font-medium text-gray-600">Loading more tasks...</p>
-                <p className="text-xs text-gray-400">Please wait while we fetch the next batch</p>
-              </div>
-            )}
-
-            {!currentHasMore && (
-              <div className="flex flex-col items-center justify-center space-y-1">
-                <div className="w-12 h-1 bg-gray-200 rounded-full mb-2"></div>
-                <p className="text-sm font-medium text-gray-500">End of List</p>
-                <p className="text-xs text-gray-400">Total {displayedTasks.length} tasks matched</p>
-              </div>
-            )}
-
-            {currentHasMore && !loadingMore && !loading && (
-              <div className="flex justify-center">
-                <button
-                  onClick={() => loadMoreTasks(activeTab)}
-                  className="px-4 py-2 text-sm font-medium text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors"
-                >
-                  Load More Tasks
-                </button>
-              </div>
-            )}
-          </div>
-        )}
 
         {displayedTasks.length === 0 && !loading && (
           <div className="py-12 text-center">

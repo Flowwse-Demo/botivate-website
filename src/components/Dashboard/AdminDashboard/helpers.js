@@ -3,13 +3,30 @@ import supabase from "../../../supabaseClient";
 // Fetch data from Supabase
 export const fetchSupabaseData = async () => {
   try {
-    // Query all rows from FMS table
-    const { data, error } = await supabase.from("FMS").select("*");
+    let allData = [];
+    let from = 0;
+    const limit = 5000;
+    let keepFetching = true;
 
-    if (error) throw error;
+    while (keepFetching) {
+      const { data, error } = await supabase
+        .from("FMS")
+        .select("*")
+        .range(from, from + limit - 1);
 
-    // Ensure array response
-    return Array.isArray(data) ? data : [];
+      if (error) throw error;
+
+      if (data && data.length > 0) {
+        allData = [...allData, ...data];
+        from += limit;
+      }
+
+      if (!data || data.length < limit) {
+        keepFetching = false;
+      }
+    }
+
+    return allData;
   } catch (error) {
     console.error("Error fetching Supabase FMS data:", error);
     return [];
@@ -664,14 +681,31 @@ export const processTeamDataFromSupabase = async (_supabaseData, userRole = "adm
     return [];
   }
 
-  // OPTIMIZATION 1: Fetch only the columns we need instead of select("*")
-  const { data: leanData, error } = await supabase
-    .from("FMS")
-    .select("id, team_member_name, employee_name_1, planned3, actual3, given_date, how_many_time_take, how_many_time_take_2, planned2, actual2, actual1");
+  // OPTIMIZATION 1: Fetch all columns needed using pagination to bypass 5000 row limit
+  let leanData = [];
+  let from = 0;
+  const limit = 5000;
+  let keepFetching = true;
 
-  if (error || !leanData || !Array.isArray(leanData)) {
-    console.error("Error fetching team data:", error);
-    return [];
+  while (keepFetching) {
+    const { data: pageData, error } = await supabase
+      .from("FMS")
+      .select("id, team_member_name, employee_name_1, employee_name_2, planned3, actual3, given_date, how_many_time_take, how_many_time_take_2, planned2, actual2, actual1")
+      .range(from, from + limit - 1);
+
+    if (error) {
+      console.error("Error fetching team data:", error);
+      return [];
+    }
+
+    if (pageData && pageData.length > 0) {
+      leanData = [...leanData, ...pageData];
+      from += limit;
+    }
+
+    if (!pageData || pageData.length < limit) {
+      keepFetching = false;
+    }
   }
 
   // OPTIMIZATION 2: Batch fetch ALL team names in one query (not N+1)
@@ -683,83 +717,98 @@ export const processTeamDataFromSupabase = async (_supabaseData, userRole = "adm
   const sortedData = [...leanData].sort((a, b) => (b.id || 0) - (a.id || 0));
 
   for (const item of sortedData) {
-    const teamMember = item.team_member_name?.trim().toLowerCase();
-    const employeeName = item.employee_name_1?.trim().toLowerCase();
+    const teamMemberRaw = item.team_member_name?.trim() || "";
+    const emp1Raw = item.employee_name_1?.trim() || "";
+    const emp2Raw = item.employee_name_2?.trim() || "";
 
-    let memberName = teamMember;
-    if (teamMember && teamMember.includes("team") && employeeName) {
-      memberName = employeeName;
+    const teamMember = teamMemberRaw.toLowerCase();
+    const emp1 = emp1Raw.toLowerCase();
+    const emp2 = emp2Raw.toLowerCase();
+
+    // Key: lowercase (for deduplication), Value: raw casing (for display)
+    const membersToCredit = new Map();
+
+    if (teamMember && !teamMember.includes("team") && teamMember !== "none" && teamMember !== "-") {
+      membersToCredit.set(teamMember, teamMemberRaw);
+    }
+    if (emp1 && !emp1.includes("team") && emp1 !== "none" && emp1 !== "-") {
+      membersToCredit.set(emp1, emp1Raw);
+    }
+    if (emp2 && !emp2.includes("team") && emp2 !== "none" && emp2 !== "-") {
+      membersToCredit.set(emp2, emp2Raw);
     }
 
-    if (!memberName) continue;
+    if (membersToCredit.size === 0) continue;
 
     // OPTIMIZATION 3: Compute time difference once per item
     const timeSpent = calculateTimeDifference(item);
 
-    if (!teamMap.has(memberName)) {
-      const assignDate = item.given_date || item.actual1;
+    for (const [memberNameKey, memberNameDisplay] of membersToCredit.entries()) {
+      if (!teamMap.has(memberNameKey)) {
+        const assignDate = item.given_date || item.actual1;
 
-      teamMap.set(memberName, {
-        id: teamMap.size + 1,
-        name: memberName,
-        teamName: teamNameLookup.get(memberName) || "No Team",
-        avatar: memberName.charAt(0).toUpperCase(),
-        assignDate: assignDate ? formatDateToDDMMYY(assignDate) : "No assign date",
-        totalTasks: 0,
-        completedTasks: 0,
-        pendingTasks: 0,
-        status: "available",
-        nearestFutureDate: null,
-        latestAssignDate: assignDate,
-        timeSpent: timeSpent,
-      });
-    }
+        teamMap.set(memberNameKey, {
+          id: teamMap.size + 1,
+          name: memberNameDisplay,
+          teamName: teamNameLookup.get(memberNameKey) || "No Team",
+          avatar: memberNameDisplay.charAt(0).toUpperCase(),
+          assignDate: assignDate ? formatDateToDDMMYY(assignDate) : "No assign date",
+          totalTasks: 0,
+          completedTasks: 0,
+          pendingTasks: 0,
+          status: "available",
+          nearestFutureDate: null,
+          latestAssignDate: assignDate,
+          timeSpent: timeSpent,
+        });
+      }
 
-    const member = teamMap.get(memberName);
-    member.totalTasks++;
+      const member = teamMap.get(memberNameKey);
+      member.totalTasks++;
 
-    const plannedData = item.planned3;
-    const actualData = item.actual3;
-    const plannedHasData = plannedData && plannedData.toString().trim() !== "";
-    const actualHasData = actualData && actualData.toString().trim() !== "";
+      const plannedData = item.planned3;
+      const actualData = item.actual3;
+      const plannedHasData = plannedData && plannedData.toString().trim() !== "";
+      const actualHasData = actualData && actualData.toString().trim() !== "";
 
-    if (plannedHasData && actualHasData) {
-      member.completedTasks++;
-    } else if (plannedHasData && !actualHasData) {
-      member.pendingTasks++;
+      if (plannedHasData && actualHasData) {
+        member.completedTasks++;
+      } else if (plannedHasData && !actualHasData) {
+        member.pendingTasks++;
 
-      // Track nearest future deadline
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      const planned3Date = new Date(plannedData);
+        // Track nearest future deadline
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const planned3Date = new Date(plannedData);
 
-      if (!isNaN(planned3Date.getTime())) {
-        planned3Date.setHours(0, 0, 0, 0);
-        if (planned3Date > today) {
-          if (!member.nearestFutureDate || planned3Date < member.nearestFutureDate) {
-            member.nearestFutureDate = planned3Date;
+        if (!isNaN(planned3Date.getTime())) {
+          planned3Date.setHours(0, 0, 0, 0);
+          if (planned3Date > today) {
+            if (!member.nearestFutureDate || planned3Date < member.nearestFutureDate) {
+              member.nearestFutureDate = planned3Date;
+            }
           }
         }
+
+        // Reuse the already-computed timeSpent instead of calling calculateTimeDifference again
+        const currentTimeMinutes = parseTimeStringToMinutes(member.timeSpent);
+        const newTimeMinutes = parseTimeStringToMinutes(timeSpent);
+        if (newTimeMinutes > currentTimeMinutes) {
+          member.timeSpent = timeSpent;
+        }
+      } else if (!plannedHasData && actualHasData) {
+        member.completedTasks++;
       }
 
-      // Reuse the already-computed timeSpent instead of calling calculateTimeDifference again
-      const currentTimeMinutes = parseTimeStringToMinutes(member.timeSpent);
-      const newTimeMinutes = parseTimeStringToMinutes(timeSpent);
-      if (newTimeMinutes > currentTimeMinutes) {
-        member.timeSpent = timeSpent;
-      }
-    } else if (!plannedHasData && actualHasData) {
-      member.completedTasks++;
-    }
-
-    // Update assign date to latest
-    const assignDate = item.given_date || item.actual1;
-    if (assignDate) {
-      const currentDate = new Date(member.latestAssignDate || 0);
-      const newDate = new Date(assignDate);
-      if (!member.latestAssignDate || newDate > currentDate) {
-        member.assignDate = formatDateToDDMMYY(assignDate);
-        member.latestAssignDate = assignDate;
+      // Update assign date to latest
+      const assignDate = item.given_date || item.actual1;
+      if (assignDate) {
+        const currentDate = new Date(member.latestAssignDate || 0);
+        const newDate = new Date(assignDate);
+        if (!member.latestAssignDate || newDate > currentDate) {
+          member.assignDate = formatDateToDDMMYY(assignDate);
+          member.latestAssignDate = assignDate;
+        }
       }
     }
   }

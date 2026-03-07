@@ -17,6 +17,7 @@ import { formatDate } from "../../utils/dateFormatters";
 import Button from "./shared/Button";
 import StatsCard from "./shared/StatsCard";
 import { LoadingIndicator, ErrorMessage } from "./shared/StatusIndicators";
+import ExpandableText from "./shared/ExpandableText";
 
 // ==================== COMPONENTS ====================
 
@@ -121,7 +122,7 @@ const TABLE_COLUMNS = [
   { key: "expected_date_to_close", label: "Expected Date To Close", index: 13 },
 ];
 // ==================== MAIN COMPONENT ====================
-export default function TaskAssignmentSystem({ tasks: propTasks }) {
+export default function TaskAssignmentSystem({ tasks: propTasks, onRefreshStats }) {
   // ==================== STATE ====================
   // Separate states for each tab to ensure independent pagination
   const [pendingTasks, setPendingTasks] = useState([]);
@@ -338,6 +339,8 @@ export default function TaskAssignmentSystem({ tasks: propTasks }) {
       if (entries[0].isIntersecting && currentHasMore) {
         fetchTasksFromAPI(activeTab, currentPage + 1);
       }
+    }, {
+      rootMargin: '200px'
     });
 
     if (node) observer.current.observe(node);
@@ -481,6 +484,11 @@ export default function TaskAssignmentSystem({ tasks: propTasks }) {
       setAssignmentForm({});
       fetchTasksFromAPI("pending", 0, true);
       fetchTasksFromAPI("history", 0, true);
+
+      // Trigger dashboard stats refresh if prop exists
+      if (typeof onRefreshStats === 'function') {
+        onRefreshStats();
+      }
     } catch (err) {
       console.error("Error submitting assignments:", err);
       alert("Error submitting assignments: " + err.message);
@@ -504,24 +512,8 @@ export default function TaskAssignmentSystem({ tasks: propTasks }) {
 
   // ==================== RENDER ====================
   return (
-    <div className="p-6 space-y-6">
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-        <StatsCard
-          title="Pending Tasks"
-          count={pendingCount}
-          description="Ready for assignment"
-          icon={Clock}
-          color="text-orange-600"
-        />
-        <StatsCard
-          title="Assignment History"
-          count={historyCount}
-          description="Tasks with assignment data"
-          icon={History}
-          color="text-purple-600"
-        />
-      </div>
+    <div className="p-3 space-y-3 md:p-4 md:space-y-4">
+      {/* Stats Cards Removed per user request */}
 
       {/* Loading and Error States */}
       {loading && (
@@ -532,64 +524,76 @@ export default function TaskAssignmentSystem({ tasks: propTasks }) {
       {/* Main Container */}
       <div className="bg-white border border-gray-200 shadow-sm rounded-xl">
         {/* Header */}
-        <div className="p-4 border-b border-gray-200 md:p-6">
+        <div className="p-2 border-b border-gray-200 md:p-3">
           {/* Header Section */}
-          <div className="flex flex-col mb-4 md:flex-row md:items-center md:justify-between md:mb-6">
-            <div className="mb-4 md:mb-0">
-              <h1 className="text-xl font-bold text-gray-900 md:text-2xl">
+          <div className="flex flex-col mb-2 md:flex-row md:items-center md:justify-between">
+            <div className="flex flex-wrap items-baseline mb-2 md:mb-0 gap-x-2">
+              <h1 className="text-sm font-bold text-gray-900 md:text-base">
                 Task Assignment System
               </h1>
-              <p className="text-sm text-gray-600 md:text-base">
+              <span className="text-[10px] text-gray-500 md:text-xs">
                 Assign tasks to team members efficiently
-              </p>
+              </span>
             </div>
 
-            <div className="relative flex justify-end p-2 w-full">
+            <div className="relative flex justify-end gap-x-2 w-full md:w-auto">
               <Button
                 variant="outline"
+                size="sm"
                 onClick={() => setShowColumnFilter(!showColumnFilter)}
-                className="flex items-center justify-center ml-5 w-full space-x-2 md:w-auto"
+                className="flex items-center space-x-2"
               >
-                <Filter className="w-4 h-4" />
-                <span>Filter Columns</span>
+                <Filter className="w-3.5 h-3.5" />
+                <span className="text-xs">Columns</span>
+              </Button>
+
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleRefresh}
+                disabled={loading}
+                className="flex items-center space-x-2"
+              >
+                <RefreshCw
+                  className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`}
+                />
+                <span className="text-xs">Refresh</span>
               </Button>
 
               {showColumnFilter && (
                 <div className="absolute right-0 z-20 w-64 mt-2 bg-white border border-gray-200 rounded-lg shadow-lg">
-                  <div className="p-4">
-                    <div className="flex items-center justify-between mb-3">
-                      <h3 className="text-sm font-medium text-gray-900">Show/Hide Columns</h3>
+                  <div className="p-3">
+                    <div className="flex items-center justify-between mb-2">
+                      <h3 className="text-xs font-semibold text-gray-900 uppercase tracking-wider">Columns</h3>
                       <button
                         onClick={() => setShowColumnFilter(false)}
-                        className="text-gray-400 hover:text-gray-600"
+                        className="text-gray-400 hover:text-gray-600 text-lg"
                       >
                         ×
                       </button>
                     </div>
-                    <div className="space-y-2 max-h-96 overflow-y-auto">
-                      <div className="pb-3 mb-3 border-b border-gray-200">
-                        <label className="flex items-center space-x-2 cursor-pointer hover:bg-gray-50 p-2 rounded">
-                          <input
-                            type="checkbox"
-                            checked={TABLE_COLUMNS.every(col => visibleColumns[col.key])}
-                            onChange={(e) => handleSelectAllColumns(e.target.checked)}
-                            className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-                          />
-                          <span className="text-sm font-semibold text-gray-900">Select All</span>
-                        </label>
-                      </div>
+                    <div className="space-y-1 max-h-80 overflow-y-auto">
+                      <label className="flex items-center p-1.5 space-x-2 rounded cursor-pointer hover:bg-gray-50 border-b border-gray-100 mb-1">
+                        <input
+                          type="checkbox"
+                          checked={TABLE_COLUMNS.every(col => visibleColumns[col.key])}
+                          onChange={(e) => handleSelectAllColumns(e.target.checked)}
+                          className="w-3.5 h-3.5 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                        />
+                        <span className="text-xs font-bold text-gray-900">Select All</span>
+                      </label>
                       {TABLE_COLUMNS.map((column) => (
                         <label
                           key={column.key}
-                          className="flex items-center space-x-2 cursor-pointer hover:bg-gray-50 p-2 rounded"
+                          className="flex items-center p-1.5 space-x-2 rounded cursor-pointer hover:bg-gray-50"
                         >
                           <input
                             type="checkbox"
                             checked={visibleColumns[column.key]}
                             onChange={() => handleColumnToggle(column.key)}
-                            className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                            className="w-3.5 h-3.5 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
                           />
-                          <span className="text-sm text-gray-700">{column.label}</span>
+                          <span className="text-xs text-gray-700">{column.label}</span>
                         </label>
                       ))}
                     </div>
@@ -597,23 +601,10 @@ export default function TaskAssignmentSystem({ tasks: propTasks }) {
                 </div>
               )}
             </div>
-
-
-            <Button
-              variant="outline"
-              onClick={handleRefresh}
-              disabled={loading}
-              className="flex items-center justify-center w-full space-x-2 md:w-auto"
-            >
-              <RefreshCw
-                className={`w-4 h-4 ${loading ? "animate-spin" : ""}`}
-              />
-              <span>Refresh</span>
-            </Button>
           </div>
 
           {/* Task Status Tabs - Mobile Responsive */}
-          <div className="flex flex-col mb-4 border-b border-gray-200 sm:flex-row md:mb-6">
+          <div className="flex flex-col mb-2 border-b border-gray-200 sm:flex-row md:mb-4">
             <div className="flex w-full">
               <TabButton
                 active={activeTab === "pending"}
@@ -660,7 +651,7 @@ export default function TaskAssignmentSystem({ tasks: propTasks }) {
         </div>
 
         {/* Tasks Table */}
-        <div className="relative overflow-x-auto" style={{ maxHeight: "70vh" }}>
+        <div className="relative overflow-x-auto overflow-y-auto" style={{ maxHeight: "70vh" }}>
           {loading ? (
             /* Loading State for Table */
             <div className="py-16 text-center">
@@ -858,9 +849,9 @@ export default function TaskAssignmentSystem({ tasks: propTasks }) {
                               ) : column.key === "given_date" ||
                                 column.key === "expected_date_to_close" ? (
                                 formatDate(task[column.key])
-                              ) : column.key === "description_of_work" || column.key === "notes" ? (
-                                <div className="leading-relaxed break-words whitespace-normal">
-                                  {task[column.key]}
+                              ) : column.key === "description_of_work" || column.key === "notes" || column.key === "remarks" ? (
+                                <div className="leading-relaxed break-words whitespace-normal w-full max-w-[250px] lg:max-w-[400px]">
+                                  <ExpandableText text={task[column.key]} />
                                 </div>
                               ) : column.key === "priority_in_customer" ? (
                                 <span
@@ -1033,11 +1024,8 @@ export default function TaskAssignmentSystem({ tasks: propTasks }) {
                         {task.systemName}
                       </div>
                       {task.descriptionOfWork && (
-                        <div>
-                          <span className="font-medium text-gray-600">
-                            Description:
-                          </span>{" "}
-                          {task.descriptionOfWork}
+                        <div className="mt-1">
+                          <ExpandableText text={task.descriptionOfWork} />
                         </div>
                       )}
                       {task.expectedDateToClose && (
@@ -1057,11 +1045,8 @@ export default function TaskAssignmentSystem({ tasks: propTasks }) {
                         </div>
                       )}
                       {task.notes && (
-                        <div>
-                          <span className="font-medium text-gray-600">
-                            Notes:
-                          </span>{" "}
-                          {task.notes}
+                        <div className="mt-1">
+                          <ExpandableText text={task.notes} />
                         </div>
                       )}
                     </div>
@@ -1095,7 +1080,7 @@ export default function TaskAssignmentSystem({ tasks: propTasks }) {
             </>
           )}
 
-          {/* Infinite Scroll Footer */}
+          {/* Infinite Scroll Footer (Now inside scrollable area) */}
           {displayedTasks.length > 0 && (
             <div className="py-8 border-t border-gray-100">
               {loadingMore && (
@@ -1126,35 +1111,39 @@ export default function TaskAssignmentSystem({ tasks: propTasks }) {
               )}
             </div>
           )}
+
+          {/* Deleted old footer position */}
         </div>
 
         {/* Empty State */}
-        {displayedTasks.length === 0 && !loading && (
-          <div className="py-12 text-center">
-            <div className="flex items-center justify-center w-16 h-16 mx-auto mb-4 bg-gray-100 rounded-full">
-              {activeTab === "history" ? (
-                <History className="w-8 h-8 text-gray-400" />
-              ) : (
-                <Clock className="w-8 h-8 text-gray-400" />
-              )}
+        {
+          displayedTasks.length === 0 && !loading && (
+            <div className="py-12 text-center">
+              <div className="flex items-center justify-center w-16 h-16 mx-auto mb-4 bg-gray-100 rounded-full">
+                {activeTab === "history" ? (
+                  <History className="w-8 h-8 text-gray-400" />
+                ) : (
+                  <Clock className="w-8 h-8 text-gray-400" />
+                )}
+              </div>
+              <h3 className="mb-2 text-lg font-medium text-gray-900">
+                No tasks found
+              </h3>
+              <p className="text-gray-500">
+                {activeTab === "pending"
+                  ? "No tasks pending assignment"
+                  : "No assignment history found"}
+              </p>
+              <Button
+                onClick={handleRefresh}
+                className="mt-4 text-white bg-blue-600 hover:bg-blue-700"
+              >
+                Refresh Data
+              </Button>
             </div>
-            <h3 className="mb-2 text-lg font-medium text-gray-900">
-              No tasks found
-            </h3>
-            <p className="text-gray-500">
-              {activeTab === "pending"
-                ? "No tasks pending assignment"
-                : "No assignment history found"}
-            </p>
-            <Button
-              onClick={handleRefresh}
-              className="mt-4 text-white bg-blue-600 hover:bg-blue-700"
-            >
-              Refresh Data
-            </Button>
-          </div>
-        )}
-      </div>
-    </div>
+          )
+        }
+      </div >
+    </div >
   );
 }

@@ -3,6 +3,7 @@ import { motion } from "framer-motion"
 import { Server, X, Activity, Database, Calendar, ExternalLink, FileText } from "lucide-react"
 import { formatDate } from "../../../utils/dateFormatters"
 import { getStatusColor, getWorkStatusColor } from "../../../utils/statusHelpers"
+import ExpandableText from "../shared/ExpandableText"
 
 export default function SystemDetailsModal({ system, onClose }) {
   const [activeTab, setActiveTab] = useState("overview")
@@ -36,7 +37,7 @@ export default function SystemDetailsModal({ system, onClose }) {
                 </p>
               </div>
             </div>
-           <div className="flex items-center space-x-6">
+            <div className="flex items-center space-x-6">
               <div className="text-right">
                 <div className="text-xs font-medium text-gray-400 uppercase tracking-wider">Updates</div>
                 <div className="text-2xl font-bold text-gray-900">{totalUpdateCount}</div>
@@ -137,7 +138,9 @@ export default function SystemDetailsModal({ system, onClose }) {
                       <FileText className="w-3 h-3 sm:w-4 sm:h-4 mr-2 text-gray-600" />
                       Description
                     </h4>
-                    <p className="text-gray-700 text-xs sm:text-sm leading-relaxed">{system.description_of_work}</p>
+                    <div className="text-gray-700 text-xs sm:text-sm leading-relaxed">
+                      <ExpandableText text={system.description_of_work} />
+                    </div>
                   </div>
                 </div>
                 <div className="space-y-3 sm:space-y-4">
@@ -190,21 +193,21 @@ export default function SystemDetailsModal({ system, onClose }) {
           )}
 
           {activeTab === "systemUpdation" && (
-  <div className="space-y-3 sm:space-y-4">
-    <div className="flex items-center justify-between">
-      <h3 className="text-base sm:text-lg font-semibold text-gray-900 flex items-center">
-        <Database className="w-4 h-4 sm:w-5 sm:h-5 mr-2 text-blue-600" />
-        <span className="hidden sm:inline">System Updation Records</span>
-        <span className="sm:hidden">Update Records</span>
-      </h3>
-      { updateData.length  > 0 && (
-        <div className="bg-orange-100 text-orange-800 px-3 py-1 rounded-full text-xs font-medium">
-          Edit & Update: {updateData.length}
-        </div>
-      )}
-    </div>
+            <div className="space-y-3 sm:space-y-4">
+              <div className="flex items-center justify-between">
+                <h3 className="text-base sm:text-lg font-semibold text-gray-900 flex items-center">
+                  <Database className="w-4 h-4 sm:w-5 sm:h-5 mr-2 text-blue-600" />
+                  <span className="hidden sm:inline">System Updation Records</span>
+                  <span className="sm:hidden">Update Records</span>
+                </h3>
+                {updateData.length > 0 && (
+                  <div className="bg-orange-100 text-orange-800 px-3 py-1 rounded-full text-xs font-medium">
+                    Edit & Update: {updateData.length}
+                  </div>
+                )}
+              </div>
 
-              {  updateData.length > 0 ? (
+              {updateData.length > 0 ? (
                 <div className="bg-white rounded-lg border border-gray-200 overflow-hidden shadow-sm">
                   {/* Desktop Table View */}
                   <div className="hidden sm:block overflow-x-auto">
@@ -241,14 +244,14 @@ export default function SystemDetailsModal({ system, onClose }) {
                         </tr>
                       </thead>
                       <tbody className="bg-white divide-y divide-gray-100">
-              {updateData.map((fmsItem, index) => (
-                <motion.tr
-                  key={index}
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: index * 0.05 }}
-                  className={`${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'} hover:bg-blue-50 transition-colors`}
-                >
+                        {updateData.map((fmsItem, index) => (
+                          <motion.tr
+                            key={index}
+                            initial={{ opacity: 0, y: 10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: index * 0.05 }}
+                            className={`${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'} hover:bg-blue-50 transition-colors`}
+                          >
                             <td className="px-4 py-3 text-sm font-medium text-gray-900 border-r border-gray-200">
                               {index + 1}
                             </td>
@@ -263,24 +266,21 @@ export default function SystemDetailsModal({ system, onClose }) {
                               </div>
                             </td>
                             <td className="px-4 py-3 text-sm text-gray-900 border-r border-gray-200">
-                            <div
-  className={`font-medium ${
-    (fmsItem.type_of_work || "")
-      .toLowerCase()
-      .includes("existing system edit & update")
-      ? "text-orange-600"
-      : "text-green-600"
-  }`}
-  title={fmsItem.type_of_work}
->
-  {fmsItem.type_of_work || "N/A"}
-</div>
+                              <div
+                                className={`font-medium ${(fmsItem.type_of_work || "")
+                                    .toLowerCase()
+                                    .includes("existing system edit & update")
+                                    ? "text-orange-600"
+                                    : "text-green-600"
+                                  }`}
+                                title={fmsItem.type_of_work}
+                              >
+                                {fmsItem.type_of_work || "N/A"}
+                              </div>
 
                             </td>
                             <td className="px-4 py-3 text-sm text-gray-900 border-r border-gray-200 max-w-xs">
-                              <div className="truncate" title={fmsItem.description_of_work}>
-                                {fmsItem.description_of_work}
-                              </div>
+                              <ExpandableText text={fmsItem.description_of_work} />
                             </td>
                             <td className="px-4 py-3 text-sm text-gray-900 border-r border-gray-200">
                               <div className="flex items-center">
@@ -293,15 +293,15 @@ export default function SystemDetailsModal({ system, onClose }) {
                                 {fmsItem.taken_from}
                               </div>
                             </td>
-                          <td className="px-4 py-3 text-sm border-r border-gray-200">
-  <span
-    className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${getWorkStatusColor(
-      fmsItem?.status
-    )}`}
-  >
-    {fmsItem?.status || "N/A"}
-  </span>
-</td>
+                            <td className="px-4 py-3 text-sm border-r border-gray-200">
+                              <span
+                                className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${getWorkStatusColor(
+                                  fmsItem?.status
+                                )}`}
+                              >
+                                {fmsItem?.status || "N/A"}
+                              </span>
+                            </td>
 
                             <td className="px-4 py-3 text-sm text-gray-900 max-w-xs">
                               <div className="truncate" title={fmsItem.remarks}>
@@ -333,11 +333,11 @@ export default function SystemDetailsModal({ system, onClose }) {
                             <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${getWorkStatusColor(fmsItem.status)}`}>
                               {fmsItem.status}
                             </span>
-                          {(fmsItem.type_of_work || "").toLowerCase().includes("existing system edit & update") && (
-  <span className="inline-flex px-2 py-1 text-xs font-medium rounded-full bg-orange-100 text-orange-800">
-    Edit & Update
-  </span>
-)}
+                            {(fmsItem.type_of_work || "").toLowerCase().includes("existing system edit & update") && (
+                              <span className="inline-flex px-2 py-1 text-xs font-medium rounded-full bg-orange-100 text-orange-800">
+                                Edit & Update
+                              </span>
+                            )}
 
                           </div>
                           <div className="flex items-center text-xs text-gray-500">
@@ -356,26 +356,25 @@ export default function SystemDetailsModal({ system, onClose }) {
                             </p>
                             <p className="text-xs text-gray-600">
                               <span className="font-medium">Type:</span>
-                            <span
-  className={`font-medium ml-1 ${
-    (fmsItem.type_of_work || "")
-      .toLowerCase()
-      .includes("existing system edit & update")
-      ? "text-orange-600"
-      : "text-green-600"
-  }`}
->
-  {fmsItem.type_of_work || "N/A"}
-</span>
-    </p>
+                              <span
+                                className={`font-medium ml-1 ${(fmsItem.type_of_work || "")
+                                    .toLowerCase()
+                                    .includes("existing system edit & update")
+                                    ? "text-orange-600"
+                                    : "text-green-600"
+                                  }`}
+                              >
+                                {fmsItem.type_of_work || "N/A"}
+                              </span>
+                            </p>
                           </div>
 
                           {/* Description */}
                           <div>
                             <p className="text-xs text-gray-500 font-medium mb-1">Work Description:</p>
-                            <p className="text-xs text-gray-800 bg-gray-50 p-2 rounded border">
-                              {fmsItem.description_of_work}
-                            </p>
+                            <div className="text-xs text-gray-800 bg-gray-50 p-2 rounded border">
+                              <ExpandableText text={fmsItem.description_of_work} />
+                            </div>
                           </div>
 
                           {/* Bottom Info */}

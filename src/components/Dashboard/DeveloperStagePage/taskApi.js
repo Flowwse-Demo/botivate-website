@@ -28,11 +28,25 @@ export const fetchMasterSheetMembers = async () => {
   }
 };
 
-export const fetchTasksFromAPI = async () => {
+const PAGE_SIZE = 50;
+
+export const fetchTasksFromAPI = async (type = "pending", pageNumber = 0) => {
   try {
-    const { data: tasksData, error: tasksError } = await supabase
-      .from("FMS")
-      .select("*");
+    const from = pageNumber * PAGE_SIZE;
+    const to = from + PAGE_SIZE - 1;
+
+    let query = supabase.from("FMS").select("*");
+
+    // Apply type-specific filters at the DB level
+    if (type === "pending") {
+      query = query.is("actual2", null);
+    } else {
+      query = query.not("actual2", "is", null);
+    }
+
+    const { data: tasksData, error: tasksError } = await query
+      .order("id", { ascending: false })
+      .range(from, to);
 
     if (tasksError) throw tasksError;
 
@@ -47,30 +61,42 @@ export const fetchTasksFromAPI = async () => {
       masterMembers
     );
 
-    // Tasks are pending if they are not yet fully completed (actual2 is missing)
-    const pending = tasks.filter(
-      (item) => !item.actual2
-    );
-    const history = tasks.filter(
-      (item) => item.actual2
-    );
-
-    const postedByValues = [
-      ...new Set(tasks.map((item) => item.postedBy).filter(Boolean)),
-    ];
+    const hasMore = tasksData.length === PAGE_SIZE;
 
     return {
-      allTasks: tasks,
+      tasks,
       teamMembers1,
       teamMembers2,
-      pendingData: pending,
-      historyData: history,
-      uniquePostedBy: postedByValues,
+      hasMore,
     };
   } catch (err) {
     console.error("Error fetching tasks:", err);
     throw err;
   }
+};
+
+// Helper to fetch initial data for both tabs simultaneously
+export const fetchInitialData = async () => {
+  const [pendingResult, historyResult] = await Promise.all([
+    fetchTasksFromAPI("pending", 0),
+    fetchTasksFromAPI("history", 0),
+  ]);
+
+  // Get unique postedBy from both sets
+  const allTasks = [...pendingResult.tasks, ...historyResult.tasks];
+  const uniquePostedBy = [
+    ...new Set(allTasks.map((item) => item.postedBy).filter(Boolean)),
+  ];
+
+  return {
+    pendingTasks: pendingResult.tasks,
+    historyTasks: historyResult.tasks,
+    pendingHasMore: pendingResult.hasMore,
+    historyHasMore: historyResult.hasMore,
+    teamMembers1: pendingResult.teamMembers1,
+    teamMembers2: pendingResult.teamMembers2,
+    uniquePostedBy,
+  };
 };
 
 export const submitAssignments = async (selectedTasks, allTasks, assignmentForm) => {
@@ -95,7 +121,7 @@ export const submitAssignments = async (selectedTasks, allTasks, assignmentForm)
           actual2: submissionDate,
           posted_by: task.postedBy || null,
         })
-        .eq("task_no", task.taskNo);
+        .eq("id", task.id);
 
       if (error) {
         console.error(`Error updating task ${task.taskNo}:`, error.message);

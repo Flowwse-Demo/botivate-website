@@ -12,6 +12,7 @@ export default function TaskTable({
   teamMembers2,
   visibleColumns,
   TABLE_COLUMNS,
+  lastTaskElementRef,
 }) {
   return (
     <>
@@ -63,8 +64,8 @@ export default function TaskTable({
                   <th
                     key={column.key}
                     className={`px-4 py-3 text-xs font-medium text-left text-gray-500 uppercase ${column.key === "descriptionOfWork"
-                        ? "min-w-[300px] max-w-[400px]"
-                        : ""
+                      ? "min-w-[300px] max-w-[400px]"
+                      : ""
                       }`}
                   >
                     {column.label}
@@ -75,8 +76,12 @@ export default function TaskTable({
           </thead>
 
           <tbody className="bg-white divide-y divide-gray-200">
-            {displayedTasks.map((task) => (
-              <tr key={task.id} className="hover:bg-gray-50">
+            {displayedTasks.map((task, index) => (
+              <tr
+                key={task.id}
+                className="hover:bg-gray-50"
+                ref={index === displayedTasks.length - 1 ? lastTaskElementRef : null}
+              >
                 {/* Checkbox - Only for pending tab */}
                 {activeTab === "pending" && (
                   <td className="px-4 py-3">
@@ -195,8 +200,8 @@ export default function TaskTable({
                     <td
                       key={column.key}
                       className={`px-4 py-3 text-sm text-gray-900 ${column.key === "descriptionOfWork"
-                          ? "min-w-[300px] max-w-[400px]"
-                          : ""
+                        ? "min-w-[300px] max-w-[400px]"
+                        : ""
                         }`}
                     >
                       {column.key === "linkOfSystem" && task[column.key] ? (
@@ -238,9 +243,10 @@ export default function TaskTable({
       {/* Mobile Card View */}
       <div className="lg:hidden">
         <div className="p-4 space-y-4">
-          {displayedTasks.map((task) => (
+          {displayedTasks.map((task, index) => (
             <div
               key={task.id}
+              ref={index === displayedTasks.length - 1 ? lastTaskElementRef : null}
               className="p-4 border border-gray-200 rounded-lg bg-gray-50"
             >
               {/* Checkbox for pending tab */}

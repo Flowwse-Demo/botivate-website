@@ -40,7 +40,7 @@ export const transformSheetData = (rawData, masterMembers = []) => {
       }
 
       return {
-        id: index + 1,
+        id: row.id,
         rowNumber: index + 2,
         taskNo: row.task_no || "",
         givenDate: formatDateTime(row.given_date),

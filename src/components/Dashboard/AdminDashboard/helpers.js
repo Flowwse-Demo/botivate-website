@@ -68,130 +68,6 @@ export const determineUserRole = (username, userFilterData, companyData) => {
   return defaultRole;
 };
 
-// Calculate stats from Supabase data
-export const calculateStatsFromSupabase = (
-  supabaseData,
-  userRole = "admin",
-  companyData = null,
-  userFilterData = null
-) => {
-  if (!supabaseData || !Array.isArray(supabaseData)) {
-    return {
-      totalTasks: 0,
-      activeTasks: 0,
-      completedToday: 0,
-      pendingIssues: 0,
-    };
-  }
-
-  let filteredData = [...supabaseData];
-
-  // Filter data based on user role
-  if (userRole === "company" && companyData && companyData.companyName) {
-    filteredData = filteredData.filter(
-      (item) =>
-        item.party_name &&
-        item.party_name?.toLowerCase() === companyData?.companyName?.toLowerCase()
-    );
-  } else if (userRole === "user" && userFilterData) {
-    let userName = null;
-    if (userFilterData.username) {
-      userName = userFilterData.username;
-    } else if (userFilterData.name) {
-      userName = userFilterData.name;
-    } else if (userFilterData.memberName) {
-      userName = userFilterData.memberName;
-    }
-
-    if (userName && userName !== "undefined" && userName !== "Unknown User") {
-      filteredData = filteredData.filter((item) => {
-        const employeeName1 = item.team_member_name
-          ? item.team_member_name.toString().trim().toLowerCase()
-          : "";
-        const employeeName2 = item.employee_name_2
-          ? item.employee_name_2.toString().trim().toLowerCase()
-          : "";
-        const userNameLower = userName.toLowerCase();
-
-        return (
-          employeeName1 === userNameLower || employeeName2 === userNameLower
-        );
-      });
-    } else {
-      filteredData = [];
-    }
-  }
-
-  const stats = {
-    totalTasks: filteredData.length,
-    activeTasks:
-      userRole === "admin"
-        ? filteredData.filter(
-          (item) => !item.actual3 || item.actual3.toString().trim() === ""
-        ).length
-        : 0,
-    completedToday: filteredData.filter(
-      (item) => item.actual3 && item.actual3.toString().trim() !== ""
-    ).length,
-    pendingIssues: filteredData.filter(
-      (item) => !item.actual3 || item.actual3.toString().trim() === ""
-    ).length,
-  };
-
-  return stats;
-};
-
-// Get company table data from Supabase
-export const getCompanyTableDataFromSupabase = (supabaseData, companyData) => {
-  if (
-    !supabaseData ||
-    !Array.isArray(supabaseData) ||
-    !companyData ||
-    !companyData.companyName
-  ) {
-    return [];
-  }
-
-  // Filter data for the company
-  const filteredData = supabaseData.filter(
-    (item) =>
-      item.party_name &&
-      item.party_name?.toLowerCase() === companyData?.companyName?.toLowerCase()
-  );
-
-  // Process and format the data
-  const tableData = filteredData
-    .map((item, index) => {
-      let status = "Not Started";
-      if (item.actual3 && item.actual3.toString().trim() !== "") {
-        status = "Completed";
-      } else if (item.planned3 && item.planned3.toString().trim() !== "") {
-        status = "In Progress";
-      }
-
-      return {
-        id: item.id || index + 1,
-        taskNo: item.task_no || `Task-${index + 1}`,
-        status: status,
-        partyName: item.party_name || "N/A",
-        typeOfWork: item.type_of_work || "N/A",
-        systemName: item.system_name || "N/A",
-        descriptionOfWork: item.description_of_work || "N/A",
-        notes: item.notes || "N/A",
-        takenFrom: item.taken_from || "N/A",
-        expectedDateToClose: item.expected_date_to_close || "N/A",
-        priority: item.priority_in_customer || "Normal",
-        linkOfSystem: item.website_link || "N/A",
-        attachmentFile: item.attachment_file || "N/A",
-        actualSubmitDate: item.actual3 || "N/A",
-      };
-    })
-    .filter((item) => item.taskNo !== "");
-
-  return tableData;
-};
-
-
 // ============================================================================
 // TIME CALCULATION FUNCTIONS
 // ============================================================================
@@ -206,15 +82,6 @@ export const calculateTimeDifference = (item) => {
     const howManyTimeTake2 = item.how_many_time_take_2;
     const actual1 = item.actual1;
 
-    
-    
-    
-    
-    
-    
-    
-    
-    
 
     // Helper to check if value is NOT NULL
     const isNotNull = (value) => {
@@ -236,30 +103,30 @@ export const calculateTimeDifference = (item) => {
 
       // If it contains only letters and spaces, it's likely a name
       if (/^[a-zA-Z\s]+$/.test(str.trim())) {
-        
+
         return false;
       }
 
       // Check if it's a valid date
       const date = new Date(str);
       const isValid = !isNaN(date.getTime());
-      
+
       return isValid;
     };
 
     // 1️⃣ PRIMARY CONDITION: If BOTH planned3 AND actual3 are NOT NULL
     if (isNotNull(planned3) && isNotNull(actual3)) {
-      
+
       return "0h 0m";
     }
 
     // 2️⃣ SECONDARY CONDITION: If planned3 is NOT NULL AND actual3 is NULL
     if (isNotNull(planned3) && isNull(actual3)) {
-      
+
 
       // 🧠 SUB-CONDITION A: Both planned2 AND actual2 are NULL
       if (isNull(planned2) && isNull(actual2)) {
-        
+
 
         // Check if both values exist and are valid dates
         if (isNotNull(howManyTimeTake) && isNotNull(actual1)) {
@@ -268,39 +135,39 @@ export const calculateTimeDifference = (item) => {
 
           // Validate both are dates, not names
           if (isValidDateString(howManyTimeTakeStr) && isValidDateString(actual1Str)) {
-            
-            
-            
+
+
+
 
             const result = calculateWorkingHoursDifference(actual1Str, howManyTimeTakeStr);
-            
+
             return result;
           } else {
-            
+
             return "0h 0m";
           }
         } else {
-          
+
           return "0h 0m";
         }
       }
 
       // 🧠 SUB-CONDITION B: Both planned2 AND actual2 are NOT NULL
       if (isNotNull(planned2) && isNotNull(actual2)) {
-        
+
 
         if (isNotNull(howManyTimeTake2)) {
-          
+
           const result = formatTimeWithWorkingHours(howManyTimeTake2);
-          
+
           return result;
         }
-        
+
         return "0h 0m";
       }
     }
 
-    
+
     return "0h 0m";
 
   } catch (error) {
@@ -312,24 +179,24 @@ export const calculateTimeDifference = (item) => {
 // Calculate difference considering working hours (10:00 AM - 06:00 PM, Monday to Saturday)
 export const calculateWorkingHoursDifference = (startTimeStr, endTimeStr) => {
   try {
-    
-    
-    
+
+
+
 
     const startTime = new Date(startTimeStr);
     const endTime = new Date(endTimeStr);
 
-    
-    
+
+
 
     if (isNaN(startTime.getTime()) || isNaN(endTime.getTime())) {
-      
+
       return "0h 0m";
     }
 
     // Ensure start is before end
     if (startTime >= endTime) {
-      
+
       return "0h 0m";
     }
 
@@ -344,7 +211,7 @@ export const calculateWorkingHoursDifference = (startTimeStr, endTimeStr) => {
     const diffTime = Math.abs(endTime - startTime);
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
-    
+
 
     // Loop through each day
     for (let day = 0; day <= diffDays; day++) {
@@ -354,7 +221,7 @@ export const calculateWorkingHoursDifference = (startTimeStr, endTimeStr) => {
       // 🔥 NEW: Check if it's Sunday (0 = Sunday, 1 = Monday, ..., 6 = Saturday)
       const dayOfWeek = dayDate.getDay();
       if (dayOfWeek === 0) {
-        
+
         continue; // Skip Sunday
       }
 
@@ -375,11 +242,11 @@ export const calculateWorkingHoursDifference = (startTimeStr, endTimeStr) => {
         const cappedMinutes = Math.min(dayMinutes, workingHoursPerDay * 60);
 
         totalWorkingMinutes += cappedMinutes;
-        
+
       }
     }
 
-    
+
 
     const totalHours = Math.floor(totalWorkingMinutes / 60);
     const minutes = Math.floor(totalWorkingMinutes % 60);
@@ -395,7 +262,7 @@ export const calculateWorkingHoursDifference = (startTimeStr, endTimeStr) => {
       result = `0d ${hours}h ${minutes}m`;
     }
 
-    
+
     return result;
 
   } catch (error) {
@@ -407,7 +274,7 @@ export const calculateWorkingHoursDifference = (startTimeStr, endTimeStr) => {
 // Format time with working hours consideration
 export const formatTimeWithWorkingHours = (timeStr) => {
   try {
-    
+
 
     if (!timeStr || timeStr.toString().trim() === "") {
       return "0h 0m";
@@ -417,7 +284,7 @@ export const formatTimeWithWorkingHours = (timeStr) => {
 
     // Already in "Xh Ym" format
     if (str.includes('h') && str.includes('m')) {
-      
+
       return str;
     }
 
@@ -536,13 +403,13 @@ export const isTimeFormat = (timeStr) => {
 // Helper function to calculate difference between two dates
 export const calculateDifference = (dateStr1, dateStr2) => {
   try {
-    
+
 
     const date1 = new Date(dateStr1);
     const date2 = new Date(dateStr2);
 
     if (isNaN(date1.getTime()) || isNaN(date2.getTime())) {
-      
+
       return "0h 0m";
     }
 
@@ -559,10 +426,10 @@ export const calculateDifference = (dateStr1, dateStr2) => {
 // Enhanced helper function to format time spent from string with days
 export const formatTimeSpent = (timeStr) => {
   try {
-    
+
 
     if (!timeStr) {
-      
+
       return "0h 0m";
     }
 
@@ -570,20 +437,20 @@ export const formatTimeSpent = (timeStr) => {
 
     // If it's already in proper format with days/hours/minutes, return as is
     if ((str.includes('day') || str.includes('d')) && str.includes('h') && str.includes('m')) {
-      
+
       return formatToDaysHoursMinutes(str);
     }
 
     // If it's already in "Xh Ym" format, convert to days format
     if (str.includes('h') && str.includes('m')) {
-      
+
       return convertHoursMinutesToDays(str);
     }
 
     // Handle simple numbers (assume they are hours)
     if (/^\d+$/.test(str)) {
       const totalHours = parseInt(str);
-      
+
       return formatHoursToDays(totalHours);
     }
 
@@ -592,7 +459,7 @@ export const formatTimeSpent = (timeStr) => {
       const daysMatch = str.match(/(\d+)\s*days?/i);
       if (daysMatch) {
         const days = parseInt(daysMatch[1]);
-        
+
         return `${days}day${days !== 1 ? 's' : ''} 0h 0m`;
       }
     }
@@ -602,7 +469,7 @@ export const formatTimeSpent = (timeStr) => {
       const hoursMatch = str.match(/(\d+)\s*hours?/i);
       if (hoursMatch) {
         const totalHours = parseInt(hoursMatch[1]);
-        
+
         return formatHoursToDays(totalHours);
       }
     }
@@ -613,7 +480,7 @@ export const formatTimeSpent = (timeStr) => {
     if (hoursMinutesMatch) {
       const hours = parseInt(hoursMinutesMatch[1]);
       const minutes = parseInt(hoursMinutesMatch[2]);
-      
+
       const totalHours = hours + (minutes / 60);
       return formatHoursToDays(totalHours);
     }
@@ -629,7 +496,7 @@ export const formatTimeSpent = (timeStr) => {
       }
     }
 
-    
+
     return "0h 0m";
   } catch (error) {
     console.error("Error in formatTimeSpent:", error);
@@ -760,35 +627,61 @@ export const formatDateToDDMMYY = (dateInput) => {
   }
 };
 
-// UPDATED: Process team data from Supabase with dynamic team name lookup
-export const processTeamDataFromSupabase = async (supabaseData, userRole = "admin") => {
+/**
+ * Batch fetch all team names from the dropdown table in one query.
+ * @returns {Promise<Map<string, string>>} Map of lowercase member name → team name
+ */
+const fetchAllTeamNames = async () => {
+  try {
+    const { data, error } = await supabase
+      .from("dropdown")
+      .select("team_name, member_name");
+
+    if (error || !data) return new Map();
+
+    const teamMap = new Map();
+    data.forEach((row) => {
+      if (row.member_name) {
+        teamMap.set(row.member_name.trim().toLowerCase(), row.team_name || "No Team");
+      }
+    });
+    return teamMap;
+  } catch (error) {
+    console.error("Error batch-fetching team names:", error);
+    return new Map();
+  }
+};
+
+/**
+ * Process team data for the Team Overview section.
+ * Optimized: fetches only needed columns, batches team name lookups.
+ * @param {Array} _supabaseData - unused (kept for backward compat), does its own lean fetch
+ * @param {string} userRole - "admin", "user", or "company"
+ * @returns {Promise<Array>} Processed team member data
+ */
+export const processTeamDataFromSupabase = async (_supabaseData, userRole = "admin") => {
   if (userRole !== "admin") {
-    
     return [];
   }
 
-  if (!supabaseData || !Array.isArray(supabaseData)) {
-    
+  // OPTIMIZATION 1: Fetch only the columns we need instead of select("*")
+  const { data: leanData, error } = await supabase
+    .from("FMS")
+    .select("id, team_member_name, employee_name_1, planned3, actual3, given_date, how_many_time_take, how_many_time_take_2, planned2, actual2, actual1");
+
+  if (error || !leanData || !Array.isArray(leanData)) {
+    console.error("Error fetching team data:", error);
     return [];
   }
+
+  // OPTIMIZATION 2: Batch fetch ALL team names in one query (not N+1)
+  const teamNameLookup = await fetchAllTeamNames();
 
   const teamMap = new Map();
 
-  // Sort data by timestamp or id to get latest entries first
-  const sortedData = [...supabaseData].sort((a, b) => {
-    const timeA = a.timestamp || a.id || 0;
-    const timeB = b.timestamp || b.id || 0;
-    return timeB - timeA;
-  });
+  // Sort data by id to get latest entries first
+  const sortedData = [...leanData].sort((a, b) => (b.id || 0) - (a.id || 0));
 
-  
-  
-  
-
-  let processedCount = 0;
-  let skippedCount = 0;
-
-  // 🔥 NEW: Process all items and collect unique member names first
   for (const item of sortedData) {
     const teamMember = item.team_member_name?.trim().toLowerCase();
     const employeeName = item.employee_name_1?.trim().toLowerCase();
@@ -798,22 +691,18 @@ export const processTeamDataFromSupabase = async (supabaseData, userRole = "admi
       memberName = employeeName;
     }
 
-    if (!memberName) {
-      skippedCount++;
-      continue;
-    }
+    if (!memberName) continue;
 
-    // 🔥 NEW: Fetch team name dynamically from dropdown table
+    // OPTIMIZATION 3: Compute time difference once per item
+    const timeSpent = calculateTimeDifference(item);
+
     if (!teamMap.has(memberName)) {
-      const dynamicTeamName = await fetchTeamNameFromDropdown(memberName);
-      
-      const assignDate = item.given_date || item.timestamp || item.actual1;
-      const timeSpent = calculateTimeDifference(item);
+      const assignDate = item.given_date || item.actual1;
 
       teamMap.set(memberName, {
         id: teamMap.size + 1,
         name: memberName,
-        teamName: dynamicTeamName, // 🔥 Using dynamic team name from dropdown
+        teamName: teamNameLookup.get(memberName) || "No Team",
         avatar: memberName.charAt(0).toUpperCase(),
         assignDate: assignDate ? formatDateToDDMMYY(assignDate) : "No assign date",
         totalTasks: 0,
@@ -824,63 +713,50 @@ export const processTeamDataFromSupabase = async (supabaseData, userRole = "admi
         latestAssignDate: assignDate,
         timeSpent: timeSpent,
       });
-
-      
     }
-
-    processedCount++;
 
     const member = teamMap.get(memberName);
     member.totalTasks++;
 
     const plannedData = item.planned3;
     const actualData = item.actual3;
-
     const plannedHasData = plannedData && plannedData.toString().trim() !== "";
     const actualHasData = actualData && actualData.toString().trim() !== "";
 
     if (plannedHasData && actualHasData) {
       member.completedTasks++;
-      
     } else if (plannedHasData && !actualHasData) {
       member.pendingTasks++;
-      
 
+      // Track nearest future deadline
       const today = new Date();
       today.setHours(0, 0, 0, 0);
-
       const planned3Date = new Date(plannedData);
 
       if (!isNaN(planned3Date.getTime())) {
         planned3Date.setHours(0, 0, 0, 0);
-
         if (planned3Date > today) {
-          const futureDate = formatDateToDDMMYY(plannedData);
-          
-
           if (!member.nearestFutureDate || planned3Date < member.nearestFutureDate) {
             member.nearestFutureDate = planned3Date;
-            
           }
         }
       }
 
+      // Reuse the already-computed timeSpent instead of calling calculateTimeDifference again
       const currentTimeMinutes = parseTimeStringToMinutes(member.timeSpent);
-      const newTimeMinutes = parseTimeStringToMinutes(calculateTimeDifference(item));
-
+      const newTimeMinutes = parseTimeStringToMinutes(timeSpent);
       if (newTimeMinutes > currentTimeMinutes) {
-        member.timeSpent = calculateTimeDifference(item);
+        member.timeSpent = timeSpent;
       }
     } else if (!plannedHasData && actualHasData) {
       member.completedTasks++;
     }
 
-    // Update assign date
-    if (item.given_date || item.timestamp || item.actual1) {
-      const assignDate = item.given_date || item.timestamp || item.actual1;
+    // Update assign date to latest
+    const assignDate = item.given_date || item.actual1;
+    if (assignDate) {
       const currentDate = new Date(member.latestAssignDate || 0);
       const newDate = new Date(assignDate);
-
       if (!member.latestAssignDate || newDate > currentDate) {
         member.assignDate = formatDateToDDMMYY(assignDate);
         member.latestAssignDate = assignDate;
@@ -888,23 +764,16 @@ export const processTeamDataFromSupabase = async (supabaseData, userRole = "admi
     }
   }
 
-  
-  
-  
-
-  teamMap.forEach((member, name) => {
+  // Set status based on nearest future deadline
+  teamMap.forEach((member) => {
     if (member.nearestFutureDate) {
       member.status = formatDateToDDMMYY(member.nearestFutureDate);
     } else {
       member.status = "available";
     }
-
-    
-    
-    
   });
 
-  const teamMembers = Array.from(teamMap.values()).map((member) => ({
+  return Array.from(teamMap.values()).map((member) => ({
     ...member,
     tasksAssigned: member.pendingTasks,
     tasksCompleted: member.completedTasks,
@@ -914,162 +783,6 @@ export const processTeamDataFromSupabase = async (supabaseData, userRole = "admi
       : 0,
     timeSpent: member.timeSpent || "0h 0m",
   }));
-
-  
-  
-
-  return teamMembers;
 };
 
 
-// NEW: Helper function to fetch team name from dropdown table
-export const fetchTeamNameFromDropdown = async (memberName) => {
-  try {
-    if (!memberName || memberName.trim() === "") {
-      return "No Team";
-    }
-
-    const lowerName = memberName.trim().toLowerCase();
-
-    const { data, error } = await supabase
-      .from("dropdown")
-      .select("team_name, member_name")
-      .ilike("member_name", lowerName); // case-insensitive match
-
-    if (error || !data || data.length === 0) {
-      
-      return "No Team";
-    }
-
-    return data[0]?.team_name || "No Team";
-  } catch (error) {
-    console.error("Error fetching team name from dropdown:", error);
-    return "No Team";
-  }
-};
-
-
-// Process project data from Supabase (unchanged from your version)
-export const processProjectData = (supabaseData, userRole = "admin") => {
-  if (userRole !== "admin") {
-    return [];
-  }
-
-  if (!supabaseData || !Array.isArray(supabaseData)) {
-    return [];
-  }
-
-  const determineStage = (record) => {
-    const { planned1, actual1, planned2, actual2, planned3, actual3 } = record;
-
-    const hasData = (field) => field && field.toString().trim() !== "";
-    const isEmpty = (field) => !field || field.toString().trim() === "";
-
-    if (hasData(planned1) && isEmpty(actual1)) {
-      return "Stage 1";
-    }
-
-    if (
-      hasData(planned1) &&
-      hasData(actual1) &&
-      hasData(planned2) &&
-      isEmpty(actual2)
-    ) {
-      return "Stage 2";
-    }
-
-    if (
-      hasData(planned2) &&
-      hasData(actual2) &&
-      hasData(planned3) &&
-      isEmpty(actual3)
-    ) {
-      return "Stage 3";
-    }
-
-    if (hasData(planned3) && hasData(actual3)) {
-      return "Completed";
-    }
-
-    return "Not Started";
-  };
-
-  const projectData = [];
-  let processedCount = 0;
-
-  supabaseData.forEach((record, index) => {
-    if (!record || typeof record !== "object") {
-      return;
-    }
-
-    const taskNo = record.task_no;
-    const descriptionOfWork = record.description_of_work;
-
-    if (
-      (!taskNo || taskNo.toString().trim() === "") &&
-      (!descriptionOfWork || descriptionOfWork.toString().trim() === "")
-    ) {
-      return;
-    }
-
-    processedCount++;
-
-    const postedBy = record.posted_by;
-    const typeOfWork = record.type_of_work;
-    const takenFrom = record.taken_from;
-    const partyName = record.party_name;
-    const systemName = record.system_name;
-
-    const currentStage = determineStage(record);
-
-    const projectItem = {
-      id: record.id || processedCount,
-      taskNo: taskNo ? taskNo.toString().trim() : `Task-${processedCount}`,
-      postedBy: postedBy ? postedBy.toString().trim() : "N/A",
-      typeOfWork: typeOfWork ? typeOfWork.toString().trim() : "N/A",
-      takenFrom: takenFrom ? takenFrom.toString().trim() : "N/A",
-      partyName: partyName ? partyName.toString().trim() : "N/A",
-      systemName: systemName ? systemName.toString().trim() : "N/A",
-      descriptionOfWork: descriptionOfWork
-        ? descriptionOfWork.toString().trim()
-        : "N/A",
-      stage1:
-        currentStage === "Stage 1"
-          ? "Active"
-          : currentStage === "Stage 2" ||
-            currentStage === "Stage 3" ||
-            currentStage === "Completed"
-            ? "Completed"
-            : "Pending",
-      stage2:
-        currentStage === "Stage 2"
-          ? "Active"
-          : currentStage === "Stage 3" || currentStage === "Completed"
-            ? "Completed"
-            : "Pending",
-      stage3:
-        currentStage === "Stage 3"
-          ? "Active"
-          : currentStage === "Completed"
-            ? "Completed"
-            : "Pending",
-      currentStage: currentStage,
-      priority: "Normal",
-      planned1: record.planned1 || "",
-      actual1: record.actual1 || "",
-      planned2: record.planned2 || "",
-      actual2: record.actual2 || "",
-      planned3: record.planned3 || "",
-      actual3: record.actual3 || "",
-      timestamp: record.timestamp || "",
-      givenDate: record.given_date || "",
-      status: record.status || "",
-      teamName: record.team_name || "",
-      assignedBy: record.assigned_by || "",
-    };
-
-    projectData.push(projectItem);
-  });
-
-  return projectData;
-};

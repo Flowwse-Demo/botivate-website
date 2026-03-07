@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import {
   Code,
   Search,
@@ -19,7 +19,9 @@ import { LoadingIndicator, ErrorMessage } from "../shared/StatusIndicators";
 import { TabButton, SubmissionBanner } from "./SubComponents";
 import { TABLE_COLUMNS } from "./dataTransform";
 import TaskTable from "./TaskTable";
-import { fetchTasksFromAPI, submitAssignments } from "./taskApi";
+import { fetchTasksFromAPI, fetchInitialData, submitAssignments } from "./taskApi";
+
+const PAGE_SIZE = 50;
 
 export default function DeveloperStagePage() {
   const [searchTerm, setSearchTerm] = useState("");
@@ -30,10 +32,16 @@ export default function DeveloperStagePage() {
   const [selectedTasks, setSelectedTasks] = useState(new Set());
   const [assignmentForm, setAssignmentForm] = useState({});
   const [submitting, setSubmitting] = useState(false);
-  
-  const [allTasks, setAllTasks] = useState([]);
+
+  // Independent pagination state
   const [pendingData, setPendingData] = useState([]);
   const [historyData, setHistoryData] = useState([]);
+  const [pendingPage, setPendingPage] = useState(0);
+  const [historyPage, setHistoryPage] = useState(0);
+  const [pendingHasMore, setPendingHasMore] = useState(true);
+  const [historyHasMore, setHistoryHasMore] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+
   const [uniquePostedBy, setUniquePostedBy] = useState([]);
   const [teamMembers1, setTeamMembers1] = useState([]);
   const [teamMembers2, setTeamMembers2] = useState([]);
@@ -43,16 +51,22 @@ export default function DeveloperStagePage() {
   );
   const [showColumnFilter, setShowColumnFilter] = useState(false);
 
-  const loadTasks = async () => {
+  const observer = useRef();
+
+  // ==================== DATA LOADING ====================
+  const loadInitialTasks = async () => {
     setLoading(true);
     setError(null);
     try {
-      const data = await fetchTasksFromAPI();
-      setAllTasks(data.allTasks);
+      const data = await fetchInitialData();
       setTeamMembers1(data.teamMembers1);
       setTeamMembers2(data.teamMembers2);
-      setPendingData(data.pendingData);
-      setHistoryData(data.historyData);
+      setPendingData(data.pendingTasks);
+      setHistoryData(data.historyTasks);
+      setPendingHasMore(data.pendingHasMore);
+      setHistoryHasMore(data.historyHasMore);
+      setPendingPage(0);
+      setHistoryPage(0);
       setUniquePostedBy(data.uniquePostedBy);
     } catch (err) {
       setError(err.message);
@@ -61,14 +75,58 @@ export default function DeveloperStagePage() {
     }
   };
 
+  const loadMoreTasks = useCallback(async (type) => {
+    const currentPage = type === "pending" ? pendingPage : historyPage;
+    const nextPage = currentPage + 1;
+
+    setLoadingMore(true);
+    try {
+      const data = await fetchTasksFromAPI(type, nextPage);
+
+      if (type === "pending") {
+        setPendingData(prev => [...prev, ...data.tasks]);
+        setPendingPage(nextPage);
+        setPendingHasMore(data.hasMore);
+      } else {
+        setHistoryData(prev => [...prev, ...data.tasks]);
+        setHistoryPage(nextPage);
+        setHistoryHasMore(data.hasMore);
+      }
+
+      // Update uniquePostedBy with new entries
+      const newPostedBy = data.tasks.map(t => t.postedBy).filter(Boolean);
+      setUniquePostedBy(prev => [...new Set([...prev, ...newPostedBy])]);
+    } catch (err) {
+      toast.error("Error loading more tasks: " + err.message);
+    } finally {
+      setLoadingMore(false);
+    }
+  }, [pendingPage, historyPage]);
+
+  // Infinite Scroll Observer
+  const lastTaskElementRef = useCallback(node => {
+    if (loading || loadingMore) return;
+    if (observer.current) observer.current.disconnect();
+
+    const currentHasMore = activeTab === "pending" ? pendingHasMore : historyHasMore;
+
+    observer.current = new IntersectionObserver(entries => {
+      if (entries[0].isIntersecting && currentHasMore) {
+        loadMoreTasks(activeTab);
+      }
+    });
+
+    if (node) observer.current.observe(node);
+  }, [loading, loadingMore, activeTab, pendingHasMore, historyHasMore, loadMoreTasks]);
+
   useEffect(() => {
-    loadTasks();
-    const interval = setInterval(loadTasks, 5 * 60 * 1000);
+    loadInitialTasks();
+    const interval = setInterval(loadInitialTasks, 5 * 60 * 1000);
     return () => clearInterval(interval);
   }, []);
 
   const handleRefresh = () => {
-    loadTasks();
+    loadInitialTasks();
   };
 
   const handleColumnToggle = (columnKey) => {
@@ -135,6 +193,7 @@ export default function DeveloperStagePage() {
 
     setSubmitting(true);
     try {
+      const allTasks = [...pendingData, ...historyData];
       const { successCount, errorCount } = await submitAssignments(
         selectedTasks,
         allTasks,
@@ -145,7 +204,7 @@ export default function DeveloperStagePage() {
         toast.success(`Successfully assigned ${successCount} task(s)!`);
         setSelectedTasks(new Set());
         setAssignmentForm({});
-        loadTasks();
+        loadInitialTasks();
       }
 
       if (errorCount > 0) {
@@ -158,6 +217,7 @@ export default function DeveloperStagePage() {
     }
   };
 
+  // ==================== FILTERING ====================
   const filteredPendingData = pendingData.filter((item) => {
     const matchesSearch =
       item.partyName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -185,9 +245,9 @@ export default function DeveloperStagePage() {
   const displayedTasks =
     activeTab === "pending" ? filteredPendingData : filteredHistoryData;
 
-  const totalTasks = allTasks.length;
-  const pendingTasks = pendingData.length;
-  const historyTasks = historyData.length;
+  const pendingCount = pendingData.length;
+  const historyCount = historyData.length;
+  const currentHasMore = activeTab === "pending" ? pendingHasMore : historyHasMore;
 
   return (
     <div className="space-y-6">
@@ -195,21 +255,21 @@ export default function DeveloperStagePage() {
       <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
         <StatsCard
           title="Total Tasks"
-          count={totalTasks}
-          description="All tasks in system"
+          count={pendingCount + historyCount}
+          description="All tasks loaded"
           icon={Target}
           color="text-blue-600"
         />
         <StatsCard
           title="Pending Tasks"
-          count={pendingTasks}
+          count={pendingCount}
           description="Ready for assignment"
           icon={Clock}
           color="text-orange-600"
         />
         <StatsCard
           title="History Tasks"
-          count={historyTasks}
+          count={historyCount}
           description="Completed assignments"
           icon={History}
           color="text-purple-600"
@@ -327,7 +387,7 @@ export default function DeveloperStagePage() {
               onClick={() => handleTabChange("pending")}
               icon={Clock}
               label="Pending"
-              count={pendingTasks}
+              count={pendingCount}
               color="orange"
             />
             <TabButton
@@ -335,7 +395,7 @@ export default function DeveloperStagePage() {
               onClick={() => handleTabChange("history")}
               icon={History}
               label="History"
-              count={historyTasks}
+              count={historyCount}
               color="purple"
             />
           </div>
@@ -379,9 +439,43 @@ export default function DeveloperStagePage() {
               teamMembers2={teamMembers2}
               visibleColumns={visibleColumns}
               TABLE_COLUMNS={TABLE_COLUMNS}
+              lastTaskElementRef={lastTaskElementRef}
             />
           )}
         </div>
+
+        {/* Infinite Scroll Footer */}
+        {displayedTasks.length > 0 && (
+          <div className="py-8 border-t border-gray-100">
+            {loadingMore && (
+              <div className="flex flex-col items-center justify-center space-y-2">
+                <RefreshCw className="w-8 h-8 text-blue-600 animate-spin" />
+                <p className="text-sm font-medium text-gray-600">Loading more tasks...</p>
+                <p className="text-xs text-gray-400">Please wait while we fetch the next batch</p>
+              </div>
+            )}
+
+            {!currentHasMore && (
+              <div className="flex flex-col items-center justify-center space-y-1">
+                <div className="w-12 h-1 bg-gray-200 rounded-full mb-2"></div>
+                <p className="text-sm font-medium text-gray-500">End of List</p>
+                <p className="text-xs text-gray-400">Total {displayedTasks.length} tasks matched</p>
+              </div>
+            )}
+
+            {currentHasMore && !loadingMore && !loading && (
+              <div className="flex justify-center">
+                <button
+                  onClick={() => loadMoreTasks(activeTab)}
+                  className="px-4 py-2 text-sm font-medium text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors"
+                >
+                  Load More Tasks
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+
         {displayedTasks.length === 0 && !loading && (
           <div className="py-12 text-center">
             <div className="flex items-center justify-center w-16 h-16 mx-auto mb-4 bg-gray-100 rounded-full">

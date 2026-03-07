@@ -41,7 +41,6 @@ import {
   fetchSupabaseData,
   determineUserRole,
   processTeamDataFromSupabase,
-  processProjectData,
 } from "./helpers";
 
 // Main AdminDashboard Component
@@ -61,7 +60,6 @@ export default function AdminDashboard({
   const [userModalTab, setUserModalTab] = useState("pending");
   const [supabaseData, setSupabaseData] = useState([]);
   const [teamMembers, setTeamMembers] = useState([]);
-  const [projectData, setProjectData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [totalTask, setTotalTask] = useState(0);
   const [pendingTask, setPendingTask] = useState(0);
@@ -85,9 +83,6 @@ export default function AdminDashboard({
         );
         setTeamMembers(processedTeamMembers);
 
-        const processedProjectData = processProjectData(data, userRole);
-        setProjectData(processedProjectData);
-
         await fetchTaskCounts();
       } catch (error) {
         console.error("Error fetching data from Supabase:", error);
@@ -102,7 +97,7 @@ export default function AdminDashboard({
   // Fetch task counts from Supabase - OPTIMIZED VERSION
   const fetchTaskCounts = async () => {
     try {
-      
+
 
       // Build base query
       let baseQuery = supabase
@@ -122,7 +117,7 @@ export default function AdminDashboard({
       const { count: totalCount, error: totalError } = await baseQuery;
       if (totalError) throw totalError;
       setTotalTask(totalCount || 0);
-      
+
 
       // Pending tasks (tasks that are not fully completed yet, i.e., actual3 is null or missing completion criteria)
       let pendingQuery = supabase
@@ -143,7 +138,7 @@ export default function AdminDashboard({
       const { count: pendingCount, error: pendingError } = await pendingQuery;
       if (pendingError) throw pendingError;
       setPendingTask(pendingCount || 0);
-      
+
 
       // Completed tasks (actual3 is not null)
       let completeQuery = supabase
@@ -162,7 +157,7 @@ export default function AdminDashboard({
       const { count: completeCount, error: completeError } = await completeQuery;
       if (completeError) throw completeError;
       setCompleteTask(completeCount || 0);
-      
+
 
     } catch (error) {
       console.error("Error fetching task counts:", error);
@@ -228,7 +223,6 @@ export default function AdminDashboard({
             stats={stats}
             activeTasks={[]}
             onViewUser={handleViewUser}
-            projectData={projectData}
             userRole={userRole}
             companyData={companyData}
             userFilterData={userFilterData}
@@ -285,7 +279,6 @@ export default function AdminDashboard({
             stats={stats}
             activeTasks={[]}
             onViewUser={handleViewUser}
-            projectData={projectData}
             userRole={userRole}
             companyData={companyData}
             userFilterData={userFilterData}

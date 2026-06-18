@@ -1,0 +1,120 @@
+/* =============================================
+   Services Teaser — homepage preview variant
+   Extends OurServices base styles
+   ============================================= */
+
+/* Homepage teaser sits on the uniform white page background
+   (scoped so the standalone Services page keeps its own background).
+   Compound selector raises specificity so it wins over the base
+   .svc-section rule regardless of stylesheet bundle order. */
+.svc-section.svc-section--teaser {
+  background: #ffffff;
+}
+
+.st-header {
+  margin-bottom: 48px;
+}
+
+/* Match the homepage section-heading style for visual consistency
+   (scoped to the teaser so the full Services page heading is unaffected) */
+.st-header .svc-headline {
+  font-size: clamp(2rem, 3.8vw, 3rem);
+  line-height: 1.1;
+  margin: 0 0 16px;
+}
+
+.st-header .svc-lead {
+  font-size: 17px;
+  line-height: 1.72;
+  font-weight: 500;
+}
+
+/* ─── Bento service card grid ──────────────── */
+.st-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  margin-bottom: 44px;
+}
+
+/* alternating wide/narrow rows for visual rhythm */
+.st-card--wide {
+  grid-column: span 2;
+}
+
+.st-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  min-height: 210px;
+  background: #ffffff;
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 26px 28px;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04), 0 12px 28px -20px rgba(15, 23, 42, 0.12);
+}
+
+/* gradient icon tile */
+.st-icon-wrap {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 13px;
+  color: #fff;
+  background: linear-gradient(140deg,
+    color-mix(in srgb, var(--st-color) 78%, #ffffff) 0%,
+    var(--st-color) 100%);
+  flex-shrink: 0;
+}
+
+.st-card-body {
+  margin-top: auto;
+}
+
+.st-title {
+  font-family: var(--font-display);
+  font-size: 19px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--text-primary);
+  margin-bottom: 9px;
+  line-height: 1.25;
+}
+
+.st-desc {
+  font-size: 14.5px;
+  color: var(--text-secondary);
+  line-height: 1.68;
+  margin: 0;
+  max-width: 46ch;
+}
+
+/* ─── CTA row ──────────────────────────────── */
+.st-cta {
+  display: flex;
+  justify-content: center;
+}
+
+/* ─── Responsive ───────────────────────────── */
+@media (max-width: 860px) {
+  .st-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .st-card--wide {
+    grid-column: span 1;
+  }
+}
+
+@media (max-width: 560px) {
+  .st-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+  .st-card {
+    min-height: 0;
+    padding: 24px 22px;
+  }
+}

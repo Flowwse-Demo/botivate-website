@@ -130,7 +130,7 @@
   font-family: var(--font-display);
   font-size: 1.55rem;
   font-weight: 800;
-  color: #ffffff;
+  color: #ffffff !important;
   line-height: 1.18;
   letter-spacing: -0.035em;
   margin-bottom: 12px;
@@ -166,21 +166,15 @@
 
 .lm-chip--1 {
   margin-top: auto;
-  animation: lmFloat 4s ease-in-out infinite;
-  will-change: transform;
 }
 
 .lm-chip--2 {
   margin-top: 8px;
-  animation: lmFloat 4s ease-in-out infinite 0.8s;
-  will-change: transform;
 }
 
 .lm-chip--3 {
   margin-top: 8px;
   margin-bottom: 4px;
-  animation: lmFloat 4s ease-in-out infinite 1.6s;
-  will-change: transform;
 }
 
 .lm-chip svg {

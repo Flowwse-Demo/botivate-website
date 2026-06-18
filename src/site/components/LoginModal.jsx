@@ -115,10 +115,7 @@ export default function LoginModal({ isOpen, onClose, onLogin }) {
           <div className="lm-orb lm-orb--1" />
           <div className="lm-orb lm-orb--2" />
 
-          {/* Logo */}
-          <div className="lm-brand-logo">
-            <img src="/botivate-logo.png" alt="Botivate" className="lm-brand-logo-img" />
-          </div>
+
 
           {/* Copy */}
           <div className="lm-brand-copy">

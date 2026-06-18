@@ -46,50 +46,45 @@
   position: relative;
   display: flex;
   flex-direction: column;
-  gap: 20px;
-  min-height: 210px;
+  gap: 12px;
   background: #ffffff;
-  border: 1px solid var(--border);
-  border-radius: 20px;
-  padding: 26px 28px;
-  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04), 0 12px 28px -20px rgba(15, 23, 42, 0.12);
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: 12px;
+  padding: 24px 26px;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.03);
 }
 
-/* gradient icon tile */
+.st-card-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+/* outline icon */
 .st-icon-wrap {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 48px;
-  height: 48px;
-  border-radius: 13px;
-  color: #fff;
-  background: linear-gradient(140deg,
-    color-mix(in srgb, var(--st-color) 78%, #ffffff) 0%,
-    var(--st-color) 100%);
+  color: #64748b; /* Slate-500 default color */
   flex-shrink: 0;
-}
-
-.st-card-body {
-  margin-top: auto;
 }
 
 .st-title {
   font-family: var(--font-display);
-  font-size: 19px;
+  font-size: 18px;
   font-weight: 600;
   letter-spacing: -0.02em;
   color: var(--text-primary);
-  margin-bottom: 9px;
+  margin: 0;
   line-height: 1.25;
 }
 
 .st-desc {
   font-size: 14.5px;
   color: var(--text-secondary);
-  line-height: 1.68;
+  line-height: 1.6;
   margin: 0;
-  max-width: 46ch;
+  max-width: 100%;
 }
 
 /* ─── CTA row ──────────────────────────────── */
@@ -114,7 +109,7 @@
     gap: 12px;
   }
   .st-card {
-    min-height: 0;
-    padding: 24px 22px;
+    padding: 20px 20px;
+    gap: 10px;
   }
 }

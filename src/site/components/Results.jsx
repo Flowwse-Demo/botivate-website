@@ -1,9 +1,4 @@
-import { useEffect, useRef } from 'react';
-import gsap from 'gsap';
-import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import './Results.css';
-
-gsap.registerPlugin(ScrollTrigger);
 
 const results = [
   {
@@ -45,47 +40,13 @@ const results = [
 ];
 
 export default function Results() {
-  const sectionRef = useRef(null);
-  const cardsRef   = useRef([]);
-  const headRef    = useRef(null);
-
-  useEffect(() => {
-    const ctx = gsap.context(() => {
-      gsap.fromTo(
-        headRef.current,
-        { opacity: 0, y: 40 },
-        {
-          opacity: 1, y: 0, duration: 0.8, ease: 'power3.out',
-          scrollTrigger: {
-            trigger: sectionRef.current,
-            start: 'top 80%',
-            toggleActions: 'play none none none',
-          },
-        }
-      );
-      gsap.fromTo(
-        cardsRef.current,
-        { opacity: 0, y: 60 },
-        {
-          opacity: 1, y: 0, duration: 0.8, stagger: 0.12, ease: 'power3.out',
-          scrollTrigger: {
-            trigger: sectionRef.current,
-            start: 'top 70%',
-            toggleActions: 'play none none none',
-          },
-        }
-      );
-    }, sectionRef);
-    return () => ctx.revert();
-  }, []);
-
   return (
-    <section className="results" id="results" ref={sectionRef}>
+    <section className="results" id="results">
       <div className="results-inner">
         <div className="results-super-card">
 
           <div className="rsc-top-row">
-            <div className="results-header" ref={headRef}>
+            <div className="results-header">
               <h2 className="section-title">
                 What Our Clients <span className="gradient-text">Achieve</span>
               </h2>
@@ -101,7 +62,6 @@ export default function Results() {
               <div
                 key={i}
                 className="rsc-stat-item"
-                ref={(el) => (cardsRef.current[i] = el)}
               >
                 <div className="result-metric">{r.metric}</div>
                 <h3 className="result-label">{r.label}</h3>
@@ -115,4 +75,3 @@ export default function Results() {
     </section>
   );
 }
-

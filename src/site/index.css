@@ -295,6 +295,7 @@
 .site-root .btn-secondary:hover { background: #fafafa; border-color: #cfcfd4; }
 .site-root .btn-secondary:active { border-color: #c4c4ca; }
 .site-root .btn-sm { padding: 8px 16px; min-height: auto; font-size: 14px; }
+.site-root .btn-md { padding: 10px 18px; font-size: 15px; }
 .site-root .btn-white {
   background: rgba(255, 255, 255, 0.1);
   color: #fff;

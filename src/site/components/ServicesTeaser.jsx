@@ -1,7 +1,4 @@
-import { useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
-import gsap from 'gsap';
-import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { FiZap, FiGrid, FiCpu, FiCode } from 'react-icons/fi';
 import './OurServices.css';
 import './ServicesTeaser.css';
@@ -36,40 +33,11 @@ const HIGHLIGHTS = [
 ];
 
 export default function ServicesTeaser() {
-  const sectionRef = useRef(null);
-  const headerRef  = useRef(null);
-  const gridRef    = useRef(null);
-
-  useEffect(() => {
-    const ctx = gsap.context(() => {
-      gsap.fromTo(headerRef.current,
-        { opacity: 0, y: 40 },
-        {
-          opacity: 1, y: 0, duration: 0.9, ease: 'power3.out',
-          scrollTrigger: { trigger: headerRef.current, start: 'top 80%', toggleActions: 'play none none none' },
-        }
-      );
-
-      const cards = gridRef.current?.querySelectorAll('.st-card');
-      if (cards?.length) {
-        gsap.fromTo(cards,
-          { opacity: 0, y: 28 },
-          {
-            opacity: 1, y: 0, duration: 0.65, stagger: 0.1, ease: 'power3.out',
-            scrollTrigger: { trigger: gridRef.current, start: 'top 82%', toggleActions: 'play none none none' },
-          }
-        );
-      }
-    }, sectionRef);
-
-    return () => ctx.revert();
-  }, []);
-
   return (
-    <section className="svc-section svc-section--teaser" id="services" ref={sectionRef}>
+    <section className="svc-section svc-section--teaser" id="services">
       <div className="svc-inner">
 
-        <div className="svc-header st-header" ref={headerRef}>
+        <div className="svc-header st-header">
           <h2 className="svc-headline">
             We Build Systems<br />
             <span className="svc-headline-grad">Around Your Business</span>
@@ -79,7 +47,7 @@ export default function ServicesTeaser() {
           </p>
         </div>
 
-        <div className="st-grid" ref={gridRef}>
+        <div className="st-grid">
           {HIGHLIGHTS.map((h) => {
             const Icon = h.icon;
             return (
@@ -88,13 +56,13 @@ export default function ServicesTeaser() {
                 key={h.title}
                 style={{ '--st-color': h.color }}
               >
-                <div className="st-icon-wrap">
-                  <Icon size={22} />
-                </div>
-                <div className="st-card-body">
+                <div className="st-card-header">
+                  <span className="st-icon-wrap">
+                    <Icon size={20} />
+                  </span>
                   <h3 className="st-title">{h.title}</h3>
-                  <p className="st-desc">{h.desc}</p>
                 </div>
+                <p className="st-desc">{h.desc}</p>
               </div>
             );
           })}

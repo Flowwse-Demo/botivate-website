@@ -125,8 +125,8 @@ export default function AppRoutes() {
             <Route path="/services" element={<ServicesPage />} />
             <Route path="/autorocket" element={<BotivateOSPage />} />
             <Route path="/frog-planner" element={<FrogPlannerPage />} />
-            <Route path="/memories" element={<MemoriesPage />} />
-            <Route path="/careers" element={<CareersPage />} />
+            {/* <Route path="/memories" element={<MemoriesPage />} /> */}
+            {/* <Route path="/careers" element={<CareersPage />} /> */}
           </Route>
 
           {/* Protected dashboard (the "inner section") */}

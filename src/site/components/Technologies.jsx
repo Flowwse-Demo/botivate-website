@@ -5,9 +5,10 @@ import {
   SiReact, SiTypescript, SiNodedotjs, SiDocker,
   SiPostgresql, SiStripe, SiNextdotjs, SiMongodb,
   SiRazorpay, SiPython, SiRedis, SiVercel,
-  SiTailwindcss, SiGraphql, SiFirebase, SiShopify,
-  SiGooglecloud, SiOpenai, SiWhatsapp, SiZapier, SiTwilio,
+  SiTailwindcss, SiGraphql, SiFirebase,
+  SiOpenai, SiWhatsapp, SiZapier, SiTwilio,
   SiKubernetes, SiCloudflare, SiNginx,
+  SiSupabase, SiHostinger, SiResend,
 } from 'react-icons/si';
 import { FaAws } from 'react-icons/fa6';
 import { TbApi } from 'react-icons/tb';
@@ -61,8 +62,9 @@ const categories = [
       { icon: <SiNextdotjs />,   label: 'Next.js',    brand: '#000',    offset:  16 },
     ],
     outerTechs: [
-      { icon: <SiTypescript />,  label: 'TypeScript', brand: '#3178c6', offset: -14 },
-      { icon: <SiTailwindcss />, label: 'Tailwind',   brand: '#06b6d4', offset:  14 },
+      { icon: <SiTypescript />,  label: 'TypeScript', brand: '#3178c6', offset: -20 },
+      { icon: <SiVercel />,      label: 'Vercel',     brand: '#555',    offset:   0 },
+      { icon: <SiTailwindcss />, label: 'Tailwind',   brand: '#06b6d4', offset:  20 },
     ],
   },
   {
@@ -85,23 +87,23 @@ const categories = [
       { icon: <SiPostgresql />, label: 'PostgreSQL', brand: '#336791', offset:  14 },
     ],
     outerTechs: [
-      { icon: <SiRedis />,    label: 'Redis',    brand: '#dc382d', offset: -13 },
-      { icon: <SiFirebase />, label: 'Firebase', brand: '#ffca28', offset:  13 },
+      { icon: <SiRedis />,    label: 'Redis',    brand: '#dc382d', offset: -20 },
+      { icon: <SiSupabase />, label: 'Supabase', brand: '#3ecf8e', offset:   0 },
+      { icon: <SiFirebase />, label: 'Firebase', brand: '#ffca28', offset:  20 },
     ],
   },
   {
     label: 'Cloud & DevOps', angle: 180, color: '#f97316',
     fill: 'rgba(249,115,22,0.14)', fillB: 'rgba(249,115,22,0.08)', fillC: 'rgba(249,115,22,0.04)',
     innerTechs: [
-      { icon: <FaAws />,         label: 'AWS',        brand: '#ff9900', offset: -20 },
-      { icon: <SiKubernetes />,  label: 'Kubernetes', brand: '#326ce5', offset:   0 },
-      { icon: <SiGooglecloud />, label: 'GCloud',     brand: '#4285f4', offset:  20 },
+      { icon: <FaAws />,         label: 'AWS',        brand: '#ff9900', offset: -14 },
+      { icon: <SiKubernetes />,  label: 'Kubernetes', brand: '#326ce5', offset:  14 },
     ],
     outerTechs: [
       { icon: <SiDocker />,     label: 'Docker',     brand: '#2496ed', offset: -22 },
       { icon: <SiNginx />,      label: 'Nginx',      brand: '#009639', offset:  -8 },
-      { icon: <SiCloudflare />, label: 'Cloudflare', brand: '#f38020', offset:   8 },
-      { icon: <SiVercel />,     label: 'Vercel',     brand: '#555',    offset:  22 },
+      { icon: <SiHostinger />,  label: 'Hostinger',  brand: '#673ee5', offset:   8 },
+      { icon: <SiCloudflare />, label: 'Cloudflare', brand: '#f38020', offset:  22 },
     ],
   },
   {
@@ -111,9 +113,7 @@ const categories = [
       { icon: <SiStripe />,   label: 'Stripe',   brand: '#635bff', offset: -14 },
       { icon: <SiRazorpay />, label: 'Razorpay', brand: '#3395ff', offset:  14 },
     ],
-    outerTechs: [
-      { icon: <SiShopify />,  label: 'Shopify',  brand: '#96bf48', offset: 0 },
-    ],
+    outerTechs: [],
   },
   {
     label: 'AI & Automation', angle: 300, color: '#10b981',
@@ -123,8 +123,9 @@ const categories = [
       { icon: <SiZapier />, label: 'Zapier', brand: '#ff4a00', offset:  14 },
     ],
     outerTechs: [
-      { icon: <SiTwilio />,   label: 'Twilio',   brand: '#f22f46', offset: -13 },
-      { icon: <SiWhatsapp />, label: 'WhatsApp', brand: '#25d366', offset:  13 },
+      { icon: <SiTwilio />,   label: 'Twilio',   brand: '#f22f46', offset: -20 },
+      { icon: <SiResend />,   label: 'Resend',   brand: '#000000', offset:   0 },
+      { icon: <SiWhatsapp />, label: 'WhatsApp', brand: '#25d366', offset:  20 },
     ],
   },
 ];
@@ -235,7 +236,7 @@ export default function Technologies() {
                   <path d={arc(RING_C[0], RING_C[1], a1, a2)} fill={cat.fillC} />
                   {(() => {
                     const inner = xy(HUB_R + 2, cat.angle);
-                    const outer = xy(RING_C[1] + 8, cat.angle);
+                    const outer = xy(RING_C[1], cat.angle);
                     return (
                       <line x1={inner.x.toFixed(1)} y1={inner.y.toFixed(1)}
                             x2={outer.x.toFixed(1)} y2={outer.y.toFixed(1)}

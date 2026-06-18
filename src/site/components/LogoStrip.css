@@ -51,10 +51,6 @@
   will-change: transform;
 }
 
-.logo-strip-track:hover {
-  animation-play-state: paused;
-}
-
 @keyframes logoScroll {
   0%   { transform: translateX(0); }
   100% { transform: translateX(-50%); }
@@ -74,19 +70,30 @@
 }
 
 .logo-strip-item img {
-  height: 48px;
-  max-width: 160px;
+  max-height: 35px;
+  max-width: 180px;
   width: auto;
+  height: auto;
   object-fit: contain;
   filter: none;
   opacity: 0.85;
-  transition: opacity 0.3s ease, transform 0.3s ease;
   user-select: none;
 }
 
-.logo-strip-item img:hover {
-  opacity: 1;
-  transform: scale(1.06);
+/* Allow tall/square/circular logos to be taller so they match the visual weight of wide logos */
+.logo-strip-item img[src*="rama"],
+.logo-strip-item img[src*="mamta-hospital"],
+.logo-strip-item img[src*="delight-foods"],
+.logo-strip-item img[src*="elem-v2"],
+.logo-strip-item img[src*="piramal-petroleum"],
+.logo-strip-item img[src*="sansa"],
+.logo-strip-item img[src*="chandhok"],
+.logo-strip-item img[src*="divine-empire"],
+.logo-strip-item img[src*="pahlajanis"],
+.logo-strip-item img[src*="jagwani"],
+.logo-strip-item img[src*="mad-bakers"],
+.logo-strip-item img[src*="krishna"] {
+  max-height: 48px;
 }
 
 /* ── Mobile ───────────────────────────────────────────────── */
@@ -98,11 +105,38 @@
     padding: 0 24px;
   }
   .logo-strip-item img {
-    height: 28px;
-    max-width: 100px;
+    max-height: 24px;
+    max-width: 110px;
+    width: auto;
+    height: auto;
+  }
+  /* Allow tall/square/circular logos to be taller on mobile */
+  .logo-strip-item img[src*="rama"],
+  .logo-strip-item img[src*="mamta-hospital"],
+  .logo-strip-item img[src*="delight-foods"],
+  .logo-strip-item img[src*="elem-v2"],
+  .logo-strip-item img[src*="piramal-petroleum"],
+  .logo-strip-item img[src*="sansa"],
+  .logo-strip-item img[src*="chandhok"],
+  .logo-strip-item img[src*="divine-empire"],
+  .logo-strip-item img[src*="pahlajanis"],
+  .logo-strip-item img[src*="jagwani"],
+  .logo-strip-item img[src*="mad-bakers"],
+  .logo-strip-item img[src*="krishna"] {
+    max-height: 32px;
   }
   .logo-strip-mask::before,
   .logo-strip-mask::after {
     width: 60px;
+  }
+}
+
+/* Delight Foods specific size increase */
+.logo-strip-item img[src*="delight-foods"] {
+  max-height: 62px;
+}
+@media (max-width: 640px) {
+  .logo-strip-item img[src*="delight-foods"] {
+    max-height: 42px;
   }
 }

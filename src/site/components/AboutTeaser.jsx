@@ -1,7 +1,4 @@
-import { useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
-import gsap from 'gsap';
-import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import './AboutUs.css';
 import './AboutTeaser.css';
 
@@ -12,40 +9,11 @@ const stats = [
 ];
 
 export default function AboutTeaser() {
-  const sectionRef     = useRef(null);
-  const headerRef      = useRef(null);
-  const highlightsRef  = useRef(null);
-
-  useEffect(() => {
-    const ctx = gsap.context(() => {
-      gsap.fromTo(headerRef.current,
-        { opacity: 0, y: 40 },
-        {
-          opacity: 1, y: 0, duration: 0.9, ease: 'power3.out',
-          scrollTrigger: { trigger: headerRef.current, start: 'top 80%', toggleActions: 'play none none none' },
-        }
-      );
-
-      const cards = highlightsRef.current?.querySelectorAll('.at-card');
-      if (cards?.length) {
-        gsap.fromTo(cards,
-          { opacity: 0, y: 28 },
-          {
-            opacity: 1, y: 0, duration: 0.6, stagger: 0.12, ease: 'power3.out',
-            scrollTrigger: { trigger: highlightsRef.current, start: 'top 82%', toggleActions: 'play none none none' },
-          }
-        );
-      }
-    }, sectionRef);
-
-    return () => ctx.revert();
-  }, []);
-
   return (
-    <section className="about-us about-us--teaser" id="about" ref={sectionRef}>
+    <section className="about-us about-us--teaser" id="about">
       <div className="about-inner">
 
-        <div className="about-header at-header" ref={headerRef}>
+        <div className="about-header at-header">
           <h2 className="about-headline">
             Built on the Ground.<br />
             <span className="gradient-text">Powered by Systems.</span>
@@ -55,7 +23,7 @@ export default function AboutTeaser() {
           </p>
         </div>
 
-        <div className="at-highlights" ref={highlightsRef}>
+        <div className="at-highlights">
           {stats.map((s) => (
             <div key={s.label} className="at-card">
               <div className="at-stat">{s.stat}</div>

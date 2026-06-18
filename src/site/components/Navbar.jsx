@@ -15,8 +15,8 @@ const links = [
   { label: 'Services',    path: '/services',    type: 'route' },
   { label: 'About',       path: '/about',       type: 'route' },
   { label: 'Contact',     path: '#',            type: 'scroll' },
-  { label: 'Memories',    path: '/memories',    type: 'route' },
-  { label: 'Careers',     path: '/careers',     type: 'route' },
+  // { label: 'Memories',    path: '/memories',    type: 'route' },
+  // { label: 'Careers',     path: '/careers',     type: 'route' },
 ];
 
 function NavLink({ path, type, label, className, style, onClick, children }) {
@@ -114,9 +114,11 @@ export default function Navbar({ onLoginClick, user }) {
           {/* Logo */}
           <Link to="/" className="nav-logo" onClick={() => setMenuOpen(false)}>
             <img
-              src="/botivate-logo.png"
+              src="/botivate-logo.webp"
               alt="Botivate"
               className="nav-logo-img"
+              width="45"
+              height="64"
             />
           </Link>
 
@@ -171,11 +173,11 @@ export default function Navbar({ onLoginClick, user }) {
           {/* Right side */}
           <div className="nav-right">
             {user ? (
-              <Link to="/dashboard" className="btn btn-primary">
-                Dashboard
+              <Link to="/dashboard" className="btn btn-primary btn-md">
+                Go to Dashboard
               </Link>
             ) : (
-              <button className="btn btn-primary" onClick={onLoginClick}>
+              <button className="btn btn-primary btn-md" onClick={onLoginClick}>
                 Login
               </button>
             )}
@@ -276,7 +278,7 @@ export default function Navbar({ onLoginClick, user }) {
                 className="btn btn-secondary"
                 onClick={() => setMenuOpen(false)}
               >
-                Dashboard
+                Go to Dashboard
               </Link>
             ) : (
               <button

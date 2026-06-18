@@ -75,44 +75,28 @@
 
 /* ─── Responsive ───────────────────────────── */
 @media (max-width: 768px) {
-  .at-card {
-    padding: 0 16px;
-  }
-
-  .at-desc {
-    display: none;
-  }
-}
-
-@media (max-width: 520px) {
   .at-highlights {
     flex-direction: column;
-    align-items: stretch;
-    gap: 0;
+    align-items: center;
+    gap: 40px;
   }
 
   .at-card {
-    padding: 24px 0;
-    text-align: left;
-    display: grid;
-    grid-template-columns: auto 1fr;
-    grid-template-rows: auto auto;
-    column-gap: 18px;
-    align-items: center;
+    padding: 0 16px;
+    max-width: 480px;
+    text-align: center;
   }
 
   .at-stat {
-    font-size: clamp(1.8rem, 7vw, 2.4rem);
-    grid-row: 1 / 3;
-    margin-bottom: 0;
+    margin-bottom: 12px;
   }
 
   .at-label {
-    margin-bottom: 2px;
+    margin-bottom: 8px;
   }
 
   .at-desc {
     display: block;
-    font-size: 12.5px;
+    font-size: 0.95rem;
   }
 }

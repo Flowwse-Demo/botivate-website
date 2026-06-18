@@ -9,10 +9,7 @@
 
 /* ── Background zones ── */
 .cta-bg {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  z-index: 0;
+  display: none;
 }
 
 .cta-bg-zone {
@@ -100,17 +97,6 @@
   font-weight: 400;
   color: var(--text-muted);
   padding: 4px 0;
-  filter: blur(10px);
-  opacity: 0;
-  transform: translate3d(0, 40px, 0) rotateX(-15deg);
-  transition: filter 1.2s var(--ease-out), opacity 1s ease, transform 1.2s var(--ease-out);
-  will-change: transform, filter, opacity;
-}
-
-.cta-line--premise.is-visible {
-  filter: blur(0);
-  opacity: 1;
-  transform: translate3d(0, 0, 0) rotateX(0);
 }
 
 /* Step number before premise lines */
@@ -150,9 +136,6 @@
   animation: shine 8s linear infinite;
   position: relative;
   margin-top: 10px;
-  will-change: transform, opacity, filter;
-  /* Make the 3D pop effect default for the resolution line */
-  transform: translate3d(0, 0, 20px);
 }
 
 .cta-line--resolution::after {

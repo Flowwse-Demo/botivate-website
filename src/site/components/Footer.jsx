@@ -44,7 +44,7 @@ export default function Footer() {
 
           <div className="footer-col">
             <h4>Contact</h4>
-            <a href="mailto:hello@botivate.in">hello@botivate.in</a>
+            <a href="mailto:info@botivate.in">info@botivate.in</a>
             <a href="https://wa.me/918871527519" target="_blank" rel="noreferrer">WhatsApp Us</a>
             <a href="#contact">Book Free Demo</a>
             <a href="#founder">About Botivate</a>
@@ -56,13 +56,13 @@ export default function Footer() {
             © {new Date().getFullYear()} BOTIVATE. All rights reserved.
           </span>
           <div className="footer-socials">
-            <a href="https://www.linkedin.com/company/botivate" target="_blank" rel="noreferrer" className="footer-social hoverable" aria-label="LinkedIn">
+            <a href="https://www.linkedin.com/company/botivate/about" target="_blank" rel="noreferrer" className="footer-social hoverable" aria-label="LinkedIn">
               <FaLinkedin />
             </a>
-            <a href="https://www.instagram.com/botivate" target="_blank" rel="noreferrer" className="footer-social hoverable" aria-label="Instagram">
+            <a href="https://www.instagram.com/botivate.in" target="_blank" rel="noreferrer" className="footer-social hoverable" aria-label="Instagram">
               <FaInstagram />
             </a>
-            <a href="https://twitter.com/botivate" target="_blank" rel="noreferrer" className="footer-social hoverable" aria-label="Twitter">
+            <a href="https://x.com/BOTIVATE192209" target="_blank" rel="noreferrer" className="footer-social hoverable" aria-label="Twitter">
               <FaXTwitter />
             </a>
             <a href="https://wa.me/918871527519" target="_blank" rel="noreferrer" className="footer-social hoverable" aria-label="WhatsApp">

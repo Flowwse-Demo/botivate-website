@@ -146,12 +146,12 @@
   box-sizing: border-box;
 }
 
-.site-root a { text-decoration: none; color: inherit; }
-.site-root ul, .site-root ol { list-style: none; margin: 0; padding: 0; }
-.site-root img { max-width: 100%; display: block; }
-.site-root button { font-family: var(--font-body); cursor: pointer; border: none; background: none; }
+:where(.site-root) a { text-decoration: none; color: inherit; }
+:where(.site-root) ul, :where(.site-root) ol { list-style: none; margin: 0; padding: 0; }
+:where(.site-root) img { max-width: 100%; display: block; }
+:where(.site-root) button { font-family: var(--font-body); cursor: pointer; border: none; background: none; }
 
-.site-root :is(h1, h2, h3, h4, h5) {
+:where(.site-root) :is(h1, h2, h3, h4, h5) {
   font-family: var(--font-display);
   font-weight: 600;
   line-height: 1.1;
@@ -385,9 +385,9 @@
 
 /* Minimum touch target size for interactive elements (scoped) */
 @media (max-width: 768px) {
-  .site-root button,
-  .site-root a,
-  .site-root [role="button"] { min-height: 44px; }
+  :where(.site-root) button,
+  :where(.site-root) a,
+  :where(.site-root) [role="button"] { min-height: 44px; }
   .site-root .section-subtitle,
   .site-root .section-p { font-size: 15px; }
 }

@@ -8,6 +8,9 @@ export default defineConfig({
     react(),
     tailwindcss(),
   ],
+  server: {
+    host: true
+  },
   base: "./", // Add this if assets are not loading
   build: {
     outDir: "dist",

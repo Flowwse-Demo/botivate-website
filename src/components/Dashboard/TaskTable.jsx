@@ -355,14 +355,28 @@ export default function EmployeeTasksTable({
   const renderRow = (task) => {
     const selected = selectedIds.has(task.id);
     const draft = getDraft(task);
-    const isRejected = task.is_testing_issue || task.relation_type === "Testing Issue" || (typeof task.description_of_work === "string" && /\[Testing issue/i.test(task.description_of_work));
-    const rejectedReason = task.issue_remarks || (typeof task.description_of_work === "string" ? task.description_of_work.match(/^\[(?:Testing issue|Delivery not approved|Customer not informed)[^\]]*\]\s*(.*)$/i)?.[1]?.trim() : "");
+    const isApprovalReject = task.relation_type === "Approval Not Done" || (typeof task.description_of_work === "string" && /\[Delivery not approved/i.test(task.description_of_work));
+    const isInformReject = task.relation_type === "Inform Not Done" || (typeof task.description_of_work === "string" && /\[Customer not informed/i.test(task.description_of_work));
+    const isTestingReject = task.relation_type === "Testing Issue" || (!isApprovalReject && !isInformReject && (task.is_testing_issue || (typeof task.description_of_work === "string" && /\[Testing issue/i.test(task.description_of_work))));
+    const isRejected = isTestingReject || isApprovalReject || isInformReject;
+    const rejectType = isTestingReject ? "Testing" : isApprovalReject ? "Approval" : isInformReject ? "Customer Inform" : "Testing";
+
+    let rejectedReason = (task.issue_remarks || "").trim();
+    if (!rejectedReason && task.description_of_work) {
+      const match = task.description_of_work.match(/^\[(?:Testing issue|Delivery not approved|Customer not informed|Issue|Rejected)[^\]]*\]\s*(.*)$/i);
+      if (match && match[1]) {
+        rejectedReason = match[1].trim();
+      } else {
+        const genericMatch = task.description_of_work.match(/^\[[^\]]+\]\s*(.*)$/);
+        if (genericMatch && genericMatch[1]) rejectedReason = genericMatch[1].trim();
+      }
+    }
 
     return (
       <tr
         key={task.id}
         className={`hover:bg-gray-50 ${
-          selected ? "bg-blue-50/40" : isRejected ? "bg-rose-50/60 hover:bg-rose-100/60" : ""
+          selected ? "bg-blue-50/40" : isRejected ? "bg-rose-50/80 hover:bg-rose-100/90 border-b border-rose-200/80" : ""
         }`}
       >
         {isAdmin && viewTab === "pending" && (
@@ -503,20 +517,33 @@ export default function EmployeeTasksTable({
                 : "—"}
             </td>
             <td className={`${tdBase} text-sm text-gray-700 text-center align-middle`}>
-              {isRejected && rejectedReason ? (
-                <div className="flex flex-col items-center justify-center gap-1">
-                  <span className="inline-block px-1.5 py-0.5 text-[10px] font-bold uppercase rounded bg-rose-100 text-rose-700">
-                    Testing Issue
+              {isRejected ? (
+                <div className="flex flex-col items-center justify-center gap-1.5 py-1 px-1">
+                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 text-[10px] font-bold uppercase rounded-full bg-rose-100 text-rose-700 border border-rose-300 shadow-2xs whitespace-nowrap">
+                    <AlertTriangle className="w-3 h-3 text-rose-500 flex-shrink-0" />
+                    {rejectType} Issue
                   </span>
-                  <span className="text-xs font-semibold text-rose-950">
-                    {rejectedReason}
-                  </span>
+                  {rejectedReason ? (
+                    <div className="w-full text-xs font-semibold text-rose-950 bg-white/95 px-2.5 py-1.5 rounded-md border border-rose-200 shadow-2xs text-center">
+                      <span className="text-[10px] font-bold uppercase text-rose-600 block tracking-wider mb-0.5">
+                        Rejected Reason
+                      </span>
+                      <ExpandableText text={rejectedReason} />
+                    </div>
+                  ) : (
+                    <span className="text-[11px] italic text-rose-600">
+                      Reason not specified
+                    </span>
+                  )}
                   {task.remarks && task.remarks !== rejectedReason && (
-                    <span className="text-xs text-gray-500">{task.remarks}</span>
+                    <span className="text-[11px] text-gray-600 border-t border-rose-200/60 pt-0.5 max-w-full text-center">
+                      <span className="font-medium text-gray-500">Note: </span>
+                      <ExpandableText text={task.remarks} />
+                    </span>
                   )}
                 </div>
               ) : (
-                task.remarks || "—"
+                task.remarks ? <ExpandableText text={task.remarks} /> : "—"
               )}
             </td>
           </>

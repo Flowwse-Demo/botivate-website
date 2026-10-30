@@ -25,8 +25,8 @@ const COL = {
   member1: { width: 140 },
   member2: { width: 140 },
   timeRequired: { width: 110 },
-  remarks: { width: 180 },
-  taskNo: { width: 110 },
+  remarks: { width: 220 },
+  taskNo: { width: 125 },
   givenDate: { width: 95 },
   postedBy: { width: 120 },
   takenFrom: { width: 120 },
@@ -39,7 +39,7 @@ const COL = {
   attachmentFile: { width: 90 },
   priorityInCustomer: { width: 90 },
   expectedDateToClose: { width: 110 },
-  status: { width: 110 },
+  status: { width: 130 },
 };
 
 function cellStyle(key, type) {
@@ -52,7 +52,7 @@ function cellStyle(key, type) {
     width: w,
     minWidth: w,
     maxWidth:
-      key === "descriptionOfWork" || key === "notes"
+      key === "descriptionOfWork" || key === "notes" || key === "remarks"
         ? w + 80
         : key === "linkOfSystem" && type === "completed"
         ? 250
@@ -233,7 +233,7 @@ export default function TaskTable({
   const renderRow = (task) => {
     const isRejected = task.isRejected;
     const rowClass = isRejected
-      ? "bg-rose-50/70 hover:bg-rose-100/70 transition-colors"
+      ? "bg-rose-50/85 hover:bg-rose-100/90 border-b border-rose-200/80 transition-colors"
       : "hover:bg-gray-50/80 transition-colors";
 
     let isFirst = true;
@@ -324,18 +324,28 @@ export default function TaskTable({
               </span>
             </td>
             <td className={tdClass} style={cellStyle("remarks", type)}>
-              {task.isRejected && task.rejectedReason ? (
-                <div className="flex flex-col items-center justify-center gap-1 py-0.5">
-                  <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-bold uppercase rounded-full bg-rose-100 text-rose-700 border border-rose-200 shadow-2xs whitespace-nowrap">
+              {task.isRejected ? (
+                <div className="flex flex-col items-center justify-center gap-1.5 py-1 px-1">
+                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 text-[10px] font-bold uppercase rounded-full bg-rose-100 text-rose-700 border border-rose-300 shadow-2xs whitespace-nowrap">
                     <AlertTriangle className="w-3 h-3 text-rose-500 flex-shrink-0" />
                     {task.rejectType ? `${task.rejectType} Issue` : "Testing Issue"}
                   </span>
-                  <span className="text-xs font-semibold text-rose-950 max-w-full text-center">
-                    <ExpandableText text={task.rejectedReason} />
-                  </span>
-                  {task.remarks && task.remarks !== task.rejectedReason && (
-                    <span className="text-[11px] text-gray-500 border-t border-rose-100 pt-0.5 max-w-full text-center">
-                      <ExpandableText text={task.remarks} />
+                  {task.rejectedReason ? (
+                    <div className="w-full text-xs font-semibold text-rose-950 bg-white/95 px-2.5 py-1.5 rounded-md border border-rose-200 shadow-2xs text-center">
+                      <span className="text-[10px] font-bold uppercase text-rose-600 block tracking-wider mb-0.5">
+                        Rejected Reason
+                      </span>
+                      <ExpandableText text={task.rejectedReason} />
+                    </div>
+                  ) : (
+                    <span className="text-[11px] italic text-rose-600">
+                      Reason not specified
+                    </span>
+                  )}
+                  {task.rawRemarks && task.rawRemarks !== task.rejectedReason && (
+                    <span className="text-[11px] text-gray-600 border-t border-rose-200/60 pt-0.5 max-w-full text-center">
+                      <span className="font-medium text-gray-500">Note: </span>
+                      <ExpandableText text={task.rawRemarks} />
                     </span>
                   )}
                 </div>
@@ -394,7 +404,7 @@ export default function TaskTable({
       data={filteredTasks}
       renderRow={renderRow}
       renderCard={renderCard}
-      minWidth={type === "completed" ? "min-w-[1750px]" : "min-w-[1600px]"}
+      minWidth={type === "completed" ? "min-w-[1750px]" : "min-w-[1650px]"}
       currentPage={currentPage}
       totalPages={totalPages}
       itemsPerPage={itemsPerPage}

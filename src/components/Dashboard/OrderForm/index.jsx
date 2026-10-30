@@ -53,6 +53,7 @@ const FIELD_LABELS = {
   party_name: "Party name",
   quotation_number: "Quotation number",
   start_date: "Start date",
+  end_date: "End date",
   value_of_order: "Value of order",
   payment_type: "Payment type",
   type_of_work: "Type of work",
@@ -151,7 +152,6 @@ export default function OrderForm({ user, setActiveTab, modal = false, onClose, 
     if (!form.party_name.trim()) next.party_name = "Required";
     if (!form.type_of_work) next.type_of_work = "Required";
     if (!form.start_date) next.start_date = "Required";
-    if (!form.end_date) next.end_date = "Required";
     if (form.value_of_order === "" || form.value_of_order == null)
       next.value_of_order = "Required";
     if (!form.payment_type) next.payment_type = "Required";
@@ -364,9 +364,7 @@ export default function OrderForm({ user, setActiveTab, modal = false, onClose, 
             )}
           </div>
           <div>
-            <label className={labelCls}>
-              End date <span className="text-red-500">*</span>
-            </label>
+            <label className={labelCls}>End date</label>
             <input
               type="date"
               className={`${inputCls} ${fieldErrors.end_date ? "border-red-300" : ""}`}

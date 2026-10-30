@@ -1079,13 +1079,7 @@ const WEEKLY_COMPLETED_HEADERS = [
   "Delay",
 ];
 
-function useWeeklyPanel({
-  userRole,
-  user,
-  userFilterData,
-  companyData,
-  onEscalate,
-}) {
+function useWeeklyPanel({onEscalate}) {
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");

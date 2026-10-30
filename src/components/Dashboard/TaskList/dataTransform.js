@@ -78,11 +78,6 @@ export const transformSupabaseData = (rawData) => {
             const systemName = row.systems?.name || row.system_name || "";
 
             // Check if this task was created as a rework / rejection from testing or other stages
-            const isTestingReject =
-                row.relation_type === "Testing Issue" ||
-                row.is_testing_issue === true ||
-                (typeof row.description_of_work === "string" && /\[Testing issue/i.test(row.description_of_work));
-
             const isApprovalReject =
                 row.relation_type === "Approval Not Done" ||
                 (typeof row.description_of_work === "string" && /\[Delivery not approved/i.test(row.description_of_work));
@@ -90,6 +85,14 @@ export const transformSupabaseData = (rawData) => {
             const isInformReject =
                 row.relation_type === "Inform Not Done" ||
                 (typeof row.description_of_work === "string" && /\[Customer not informed/i.test(row.description_of_work));
+
+            const isTestingReject =
+                row.relation_type === "Testing Issue" ||
+                (!isApprovalReject && !isInformReject && (
+                    row.is_testing_issue === true ||
+                    (typeof row.description_of_work === "string" && /\[Testing issue/i.test(row.description_of_work)) ||
+                    (typeof row.type_of_work === "string" && row.type_of_work.toLowerCase().includes("error received"))
+                ));
 
             const isRejected = isTestingReject || isApprovalReject || isInformReject;
 
@@ -101,10 +104,15 @@ export const transformSupabaseData = (rawData) => {
             let rejectedReason = (row.issue_remarks || "").trim();
             if (!rejectedReason && row.description_of_work) {
                 const match = row.description_of_work.match(
-                    /^\[(?:Testing issue|Delivery not approved|Customer not informed)[^\]]*\]\s*(.*)$/i
+                    /^\[(?:Testing issue|Delivery not approved|Customer not informed|Issue|Rejected)[^\]]*\]\s*(.*)$/i
                 );
                 if (match && match[1]) {
                     rejectedReason = match[1].trim();
+                } else {
+                    const genericMatch = row.description_of_work.match(/^\[[^\]]+\]\s*(.*)$/);
+                    if (genericMatch && genericMatch[1]) {
+                        rejectedReason = genericMatch[1].trim();
+                    }
                 }
             }
 
@@ -145,6 +153,7 @@ export const transformSupabaseData = (rawData) => {
                 teamMemberName: assigneeName,
                 howManyTimeTabs: "",
                 remarks: remarksText,
+                rawRemarks: row.remarks || "",
                 planned2: formatDateTime(row.assigned_at),
                 actual2: formatDateTime(row.completed_at),
                 delay2: "",

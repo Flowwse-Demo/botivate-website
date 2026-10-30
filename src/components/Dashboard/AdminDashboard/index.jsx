@@ -49,6 +49,7 @@ import ChecklistPending from "../ChecklistPending";
 import OrderList from "../OrderList";
 import CompanySystemsPage from "../CompanySystemsPage";
 import SystemTasksPage from "../SystemTasksPage";
+import MeetingTrainingPage from "../Meeting";
 import supabase from "../../../supabaseClient";
 import OverviewContent from "./OverviewContent";
 import {
@@ -384,6 +385,14 @@ export default function AdminDashboard({
         return <CompanySystemsPage selectedCompanyId={selectedCompanyId} userRole={userRole} user={user} userFilterData={userFilterData} companyData={companyData} setActiveTab={setActiveTab} setSelectedSystem={setSelectedSystem} />;
       case "system-tasks":
         return <SystemTasksPage selectedSystem={selectedSystem} setActiveTab={setActiveTab} />;
+      case "meeting":
+        return (
+          <MeetingTrainingPage
+            user={user}
+            userRole={userRole}
+            userFilterData={userFilterData}
+          />
+        );
       default:
         return (
           <OverviewContent

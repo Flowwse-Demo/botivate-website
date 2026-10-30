@@ -66,13 +66,27 @@ export function TaskCard({
                                 : "border-gray-200 bg-gray-50"
                         }`}
                     >
-                        {/* Rejected from testing badge */}
+                        {/* Rejected from testing badge & reason */}
                         {task.isRejected && (
-                            <div className="mb-3">
-                                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-bold uppercase rounded-md bg-rose-100 text-rose-700 border border-rose-300 shadow-2xs">
-                                    <AlertTriangle className="w-3.5 h-3.5 text-rose-500" />
-                                    Rejected from {task.rejectType || "Testing"}
-                                </span>
+                            <div className="mb-3 p-3 rounded-lg bg-rose-100/90 border border-rose-200 shadow-2xs">
+                                <div className="flex items-center gap-1.5 mb-1">
+                                    <AlertTriangle className="w-4 h-4 text-rose-600 flex-shrink-0" />
+                                    <span className="text-xs font-bold uppercase text-rose-800 tracking-wider">
+                                        Rejected from {task.rejectType || "Testing"}
+                                    </span>
+                                </div>
+                                {task.rejectedReason ? (
+                                    <div className="text-xs font-semibold text-rose-950 mt-1.5 bg-white/80 p-2 rounded border border-rose-200">
+                                        <span className="text-[10px] font-bold uppercase text-rose-700 block tracking-wider mb-0.5">
+                                            Rejected Reason:
+                                        </span>
+                                        {task.rejectedReason}
+                                    </div>
+                                ) : (
+                                    <div className="text-xs italic text-rose-700 mt-1">
+                                        Reason not specified
+                                    </div>
+                                )}
                             </div>
                         )}
 

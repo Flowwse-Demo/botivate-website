@@ -28,6 +28,7 @@ import {
   ShieldCheck,
   Send,
   FileCheck2,
+  CalendarCheck,
 } from "lucide-react"
 
 const orderChildIdsAll = ["order-list", "system-approvals", "assign-tester", "tester", "approval-delivery", "inform-customer"]
@@ -79,6 +80,7 @@ const Sidebar = ({ activeTab, setActiveTab, onClose, isMobile, user, userFilterD
       "user-access": "User Access",
       "holidays": "Holidays",
       "order-list": "Order List",
+      "meeting": "Meeting",
       "company-systems": "My Systems",
       "company-profile": "Company Profile",
       "system-approvals": "System Approvals"
@@ -110,6 +112,7 @@ const Sidebar = ({ activeTab, setActiveTab, onClose, isMobile, user, userFilterD
     { id: "holidays", label: getTabLabel("holidays", userRole), icon: CalendarDays, key: "holidays" },
     { id: "user-access", label: getTabLabel("user-access", userRole), icon: UserCog, key: "user-access" },
     { id: "order-list", label: getTabLabel("order-list", userRole), icon: Package, key: "order-list" },
+    { id: "meeting", label: getTabLabel("meeting", userRole), icon: CalendarCheck, key: "meeting" },
     // company accounts only: their own systems page (click a system to see its tasks)
     ...((userRole || "").toLowerCase() === "company"
       ? [
@@ -269,12 +272,13 @@ const handleCompanyPermissions = (userData) => {
       if (roleAll === "admin") {
         return allTabs.filter((t) => t.id !== "user-access" && t.id !== "system-approvals")
       }
-      // company with "all" — no user-access, holidays, delegation, checklist, pc
+      // company with "all" — no user-access, holidays, delegation, checklist, pc, meeting
       if (roleAll === "company") {
         return allTabs.filter(
           (t) =>
             t.id !== "user-access" &&
             t.id !== "holidays" &&
+            t.id !== "meeting" &&
             t.id !== "delegation-form" &&
             t.id !== "delegation-tasks" &&
             t.id !== "checklist-assign" &&
@@ -345,9 +349,10 @@ const handleCompanyPermissions = (userData) => {
         return role !== "company"
       }
 
-      // Company never sees delegation, checklist, or PC
+      // Company never sees delegation, checklist, PC, or internal meeting training
       if (role === "company") {
         if (
+          tab.id === "meeting" ||
           tab.id === "delegation-form" ||
           tab.id === "delegation-tasks" ||
           tab.id === "checklist-assign" ||
@@ -358,6 +363,11 @@ const handleCompanyPermissions = (userData) => {
         ) {
           return false
         }
+      }
+
+      // Meeting training & SOP page: available to all internal employee roles
+      if (tab.id === "meeting") {
+        return role !== "company"
       }
 
       // Checklist Assign + old Delegation Form: superadmin, admin, hod only
@@ -791,7 +801,7 @@ const handleCompanyPermissions = (userData) => {
               </div>
             )
 
-            // Order: pc-page, overview, Tasks group, Checklist & Delegation group, rest
+            // Order: pc-page, overview, Tasks group, Checklist & Delegation group, Order group, rest, meeting
             const ordered = []
             const used = new Set()
             const pushTab = (id) => {
@@ -807,8 +817,9 @@ const handleCompanyPermissions = (userData) => {
             if (showChecklistGroup) ordered.push(renderChecklistGroup())
             if (showOrderGroup) ordered.push(renderOrderGroup())
             topLevelTabs.forEach((tab) => {
-              if (!used.has(tab.id)) ordered.push(renderTabBtn(tab))
+              if (tab.id !== "meeting" && !used.has(tab.id)) ordered.push(renderTabBtn(tab))
             })
+            pushTab("meeting")
             return ordered
           })()}
         </div>

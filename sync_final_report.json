@@ -1,0 +1,48 @@
+{
+  "completedAt": "2026-10-30T09:51:25.349Z",
+  "status": "SYNCHRONIZATION_COMPLETE",
+  "transferSummary": {
+    "dropdown": 50,
+    "master": 42,
+    "new_system": 1,
+    "system_list": 1705,
+    "FMS": 8001
+  },
+  "finalCounts": {
+    "prod": {
+      "FMS": 8001,
+      "dropdown": 50,
+      "master": 42,
+      "new_system": 1,
+      "system_list": 1705
+    },
+    "testLegacy": {
+      "FMS": 8001,
+      "dropdown": 50,
+      "master": 42,
+      "new_system": 1,
+      "system_list": 1705
+    },
+    "testModern": {
+      "users": 23,
+      "teams": 5,
+      "team_members": 12,
+      "systems": 65,
+      "system_requests": 0,
+      "cmp_task": 0,
+      "user_tasks": 5,
+      "task_subtasks": 13,
+      "task_testing": 21,
+      "holidays": 0,
+      "delegated_tasks": 2,
+      "checklist_tasks": 8,
+      "weekly_calls": 7,
+      "orders": 3
+    }
+  },
+  "verification": {
+    "prodDataPreserved": true,
+    "testingDataTransferred": true,
+    "testingModernTablesPreserved": true
+  }
+}

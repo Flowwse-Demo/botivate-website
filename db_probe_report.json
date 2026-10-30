@@ -1,0 +1,52 @@
+{
+  "timestamp": "2026-10-30T07:23:24.790Z",
+  "prodUrl": "https://fekrswxjqpqnhuvkezxv.supabase.co",
+  "method": "REST candidate probe (fallback)",
+  "tables": [
+    {
+      "name": "master",
+      "type": "UNKNOWN",
+      "columns": [
+        {
+          "name": "id"
+        },
+        {
+          "name": "created_at"
+        },
+        {
+          "name": "company_id"
+        },
+        {
+          "name": "company_name"
+        },
+        {
+          "name": "company_password"
+        },
+        {
+          "name": "pagination_for_company"
+        },
+        {
+          "name": "user_id"
+        },
+        {
+          "name": "user_password"
+        },
+        {
+          "name": "user_role"
+        },
+        {
+          "name": "pagination_for_user"
+        }
+      ],
+      "rowCount": 42
+    }
+  ],
+  "columns": {},
+  "accessibleViaPGREST": [
+    "master"
+  ],
+  "inaccessibleViaPGREST": [],
+  "notes": [
+    "information_schema not accessible: Invalid schema: information_schema"
+  ]
+}

@@ -1,0 +1,186 @@
+{
+  "evaluatedAt": "2026-10-30T08:06:47.619Z",
+  "status": "PASSED_SAFETY_VALIDATION",
+  "liveCounts": {
+    "prod": {
+      "FMS": {
+        "status": "OK",
+        "count": 8001,
+        "error": null
+      },
+      "dropdown": {
+        "status": "OK",
+        "count": 50,
+        "error": null
+      },
+      "master": {
+        "status": "OK",
+        "count": 42,
+        "error": null
+      },
+      "new_system": {
+        "status": "OK",
+        "count": 1,
+        "error": null
+      },
+      "system_list": {
+        "status": "OK",
+        "count": 1705,
+        "error": null
+      }
+    },
+    "test": {
+      "users": {
+        "status": "OK",
+        "count": 23,
+        "error": null
+      },
+      "teams": {
+        "status": "OK",
+        "count": 5,
+        "error": null
+      },
+      "team_members": {
+        "status": "OK",
+        "count": 12,
+        "error": null
+      },
+      "systems": {
+        "status": "OK",
+        "count": 65,
+        "error": null
+      },
+      "system_requests": {
+        "status": "OK",
+        "count": 0,
+        "error": null
+      },
+      "cmp_task": {
+        "status": "OK",
+        "count": 0,
+        "error": null
+      },
+      "user_tasks": {
+        "status": "OK",
+        "count": 5,
+        "error": null
+      },
+      "task_subtasks": {
+        "status": "OK",
+        "count": 13,
+        "error": null
+      },
+      "task_testing": {
+        "status": "OK",
+        "count": 21,
+        "error": null
+      },
+      "holidays": {
+        "status": "OK",
+        "count": 0,
+        "error": null
+      },
+      "delegated_tasks": {
+        "status": "OK",
+        "count": 2,
+        "error": null
+      },
+      "checklist_tasks": {
+        "status": "OK",
+        "count": 8,
+        "error": null
+      },
+      "weekly_calls": {
+        "status": "OK",
+        "count": 7,
+        "error": null
+      },
+      "orders": {
+        "status": "OK",
+        "count": 3,
+        "error": null
+      },
+      "task_subtasks_full": {
+        "status": "OK",
+        "count": 13,
+        "error": null
+      }
+    },
+    "hasErrors": false
+  },
+  "safetyChecks": [
+    {
+      "check": "Zero DROP TABLE statements across all plans",
+      "pass": true
+    },
+    {
+      "check": "Zero DROP TRIGGER statements across all plans",
+      "pass": true
+    },
+    {
+      "check": "Zero TRUNCATE statements across all plans",
+      "pass": true
+    },
+    {
+      "check": "Zero DELETE FROM statements across all plans",
+      "pass": true
+    },
+    {
+      "check": "No unsupported ADD CONSTRAINT IF NOT EXISTS syntax",
+      "pass": true
+    },
+    {
+      "check": "Constraints guarded with DO$$BEGIN...EXCEPTION WHEN duplicate_object",
+      "pass": true
+    },
+    {
+      "check": "Enums verified via pg_type; existing enums receive missing labels",
+      "pass": true
+    },
+    {
+      "check": "Functions verified via pg_proc before creation (no blind overwrite)",
+      "pass": true
+    },
+    {
+      "check": "Triggers verified via pg_trigger/pg_class before creation (no drops)",
+      "pass": true
+    },
+    {
+      "check": "Views verified via pg_views before creation",
+      "pass": true
+    },
+    {
+      "check": "Legacy PROD tables untouched in Op A (no FMS, system_list, master)",
+      "pass": true
+    },
+    {
+      "check": "Op A creates exactly 14 base tables with IF NOT EXISTS",
+      "pass": true
+    },
+    {
+      "check": "Op B creates exactly 5 legacy tables with verified column types",
+      "pass": true
+    },
+    {
+      "check": "Live row counts verification completed with zero unhandled errors",
+      "pass": true
+    }
+  ],
+  "verifiedFacts": [
+    "PROD contains 5 legacy tables with 9,799 total rows accessible via REST.",
+    "TEST contains 14 application base tables and 1 view with 177 total rows.",
+    "There is zero table name overlap between current PROD and TEST.",
+    "PROD master contains 42 auth records that must remain isolated from users table.",
+    "Live TEST user_tasks has is_testing_issue boolean NOT NULL default false.",
+    "Live TEST work_type_enum contains 7 labels (3 more than schema_v6.sql).",
+    "Live TEST task_status_enum contains 6 labels (1 more than schema_v6.sql)."
+  ],
+  "assumptionsAndAccessGaps": [
+    "RLS policies on both databases cannot be read via REST API; direct psql connection is required for RLS migration.",
+    "Table ownership and PostgreSQL user roles cannot be read via REST API.",
+    "Internal sequence counters and table storage options cannot be inspected via REST API.",
+    "Full check constraint expressions cannot be read via REST API."
+  ],
+  "executionBlocked": true,
+  "approvalGateReason": "Mandatory approval required before Phase 4 execution."
+}

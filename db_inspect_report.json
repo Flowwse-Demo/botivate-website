@@ -1,0 +1,1039 @@
+{
+  "generatedAt": "2026-10-30T07:18:42.259Z",
+  "prodUrl": "https://fekrswxjqpqnhuvkezxv.supabase.co",
+  "testUrl": "https://ewbizsocjgibukmpjpcq.supabase.co",
+  "tables": [
+    {
+      "name": "users",
+      "isView": false,
+      "prod": {
+        "exists": false,
+        "columns": []
+      },
+      "test": {
+        "exists": true,
+        "columns": [
+          "id",
+          "username",
+          "password",
+          "name",
+          "role",
+          "company_name",
+          "permission",
+          "is_active",
+          "created_at",
+          "updated_at"
+        ]
+      },
+      "diff": {
+        "prodExists": false,
+        "testExists": true,
+        "prodCols": [],
+        "testCols": [
+          "id",
+          "username",
+          "password",
+          "name",
+          "role",
+          "company_name",
+          "permission",
+          "is_active",
+          "created_at",
+          "updated_at"
+        ],
+        "inTestNotProd": [
+          "id",
+          "username",
+          "password",
+          "name",
+          "role",
+          "company_name",
+          "permission",
+          "is_active",
+          "created_at",
+          "updated_at"
+        ],
+        "inProdNotTest": []
+      },
+      "rowCounts": {
+        "prod": "ERR",
+        "test": 23
+      }
+    },
+    {
+      "name": "teams",
+      "isView": false,
+      "prod": {
+        "exists": false,
+        "columns": []
+      },
+      "test": {
+        "exists": true,
+        "columns": [
+          "id",
+          "name",
+          "team_type",
+          "hod_id",
+          "description",
+          "is_active",
+          "created_at",
+          "updated_at"
+        ]
+      },
+      "diff": {
+        "prodExists": false,
+        "testExists": true,
+        "prodCols": [],
+        "testCols": [
+          "id",
+          "name",
+          "team_type",
+          "hod_id",
+          "description",
+          "is_active",
+          "created_at",
+          "updated_at"
+        ],
+        "inTestNotProd": [
+          "id",
+          "name",
+          "team_type",
+          "hod_id",
+          "description",
+          "is_active",
+          "created_at",
+          "updated_at"
+        ],
+        "inProdNotTest": []
+      },
+      "rowCounts": {
+        "prod": "ERR",
+        "test": 5
+      }
+    },
+    {
+      "name": "team_members",
+      "isView": false,
+      "prod": {
+        "exists": false,
+        "columns": []
+      },
+      "test": {
+        "exists": true,
+        "columns": [
+          "id",
+          "team_id",
+          "user_id",
+          "joined_at"
+        ]
+      },
+      "diff": {
+        "prodExists": false,
+        "testExists": true,
+        "prodCols": [],
+        "testCols": [
+          "id",
+          "team_id",
+          "user_id",
+          "joined_at"
+        ],
+        "inTestNotProd": [
+          "id",
+          "team_id",
+          "user_id",
+          "joined_at"
+        ],
+        "inProdNotTest": []
+      },
+      "rowCounts": {
+        "prod": "ERR",
+        "test": 12
+      }
+    },
+    {
+      "name": "systems",
+      "isView": false,
+      "prod": {
+        "exists": false,
+        "columns": []
+      },
+      "test": {
+        "exists": true,
+        "columns": [
+          "id",
+          "company_id",
+          "name",
+          "type_of_system",
+          "status_of_system",
+          "department_name",
+          "website_link",
+          "system_username",
+          "system_password",
+          "description",
+          "environment",
+          "created_at",
+          "updated_at",
+          "company_username",
+          "company_password",
+          "dummy_link",
+          "dummy_username",
+          "dummy_password"
+        ]
+      },
+      "diff": {
+        "prodExists": false,
+        "testExists": true,
+        "prodCols": [],
+        "testCols": [
+          "id",
+          "company_id",
+          "name",
+          "type_of_system",
+          "status_of_system",
+          "department_name",
+          "website_link",
+          "system_username",
+          "system_password",
+          "description",
+          "environment",
+          "created_at",
+          "updated_at",
+          "company_username",
+          "company_password",
+          "dummy_link",
+          "dummy_username",
+          "dummy_password"
+        ],
+        "inTestNotProd": [
+          "id",
+          "company_id",
+          "name",
+          "type_of_system",
+          "status_of_system",
+          "department_name",
+          "website_link",
+          "system_username",
+          "system_password",
+          "description",
+          "environment",
+          "created_at",
+          "updated_at",
+          "company_username",
+          "company_password",
+          "dummy_link",
+          "dummy_username",
+          "dummy_password"
+        ],
+        "inProdNotTest": []
+      },
+      "rowCounts": {
+        "prod": "ERR",
+        "test": 65
+      }
+    },
+    {
+      "name": "system_requests",
+      "isView": false,
+      "prod": {
+        "exists": false,
+        "columns": []
+      },
+      "test": {
+        "exists": true,
+        "columns": []
+      },
+      "diff": {
+        "prodExists": false,
+        "testExists": true,
+        "prodCols": [],
+        "testCols": [],
+        "inTestNotProd": [],
+        "inProdNotTest": []
+      },
+      "rowCounts": {
+        "prod": "ERR",
+        "test": 0
+      }
+    },
+    {
+      "name": "cmp_task",
+      "isView": false,
+      "prod": {
+        "exists": false,
+        "columns": []
+      },
+      "test": {
+        "exists": true,
+        "columns": []
+      },
+      "diff": {
+        "prodExists": false,
+        "testExists": true,
+        "prodCols": [],
+        "testCols": [],
+        "inTestNotProd": [],
+        "inProdNotTest": []
+      },
+      "rowCounts": {
+        "prod": "ERR",
+        "test": 0
+      }
+    },
+    {
+      "name": "user_tasks",
+      "isView": false,
+      "prod": {
+        "exists": false,
+        "columns": []
+      },
+      "test": {
+        "exists": true,
+        "columns": [
+          "id",
+          "task_no",
+          "given_date",
+          "posted_by",
+          "taken_from",
+          "company_id",
+          "type_of_work",
+          "expected_date_to_close",
+          "description_of_work",
+          "system_id",
+          "link_of_system",
+          "attachment_file",
+          "priority",
+          "notes",
+          "time_required",
+          "assigned_member_1",
+          "assigned_member_2",
+          "assigned_by",
+          "remarks",
+          "status",
+          "assigned_at",
+          "approved_by",
+          "approved_at",
+          "completed_at",
+          "created_at",
+          "updated_at",
+          "github_link",
+          "is_testing_issue"
+        ]
+      },
+      "diff": {
+        "prodExists": false,
+        "testExists": true,
+        "prodCols": [],
+        "testCols": [
+          "id",
+          "task_no",
+          "given_date",
+          "posted_by",
+          "taken_from",
+          "company_id",
+          "type_of_work",
+          "expected_date_to_close",
+          "description_of_work",
+          "system_id",
+          "link_of_system",
+          "attachment_file",
+          "priority",
+          "notes",
+          "time_required",
+          "assigned_member_1",
+          "assigned_member_2",
+          "assigned_by",
+          "remarks",
+          "status",
+          "assigned_at",
+          "approved_by",
+          "approved_at",
+          "completed_at",
+          "created_at",
+          "updated_at",
+          "github_link",
+          "is_testing_issue"
+        ],
+        "inTestNotProd": [
+          "id",
+          "task_no",
+          "given_date",
+          "posted_by",
+          "taken_from",
+          "company_id",
+          "type_of_work",
+          "expected_date_to_close",
+          "description_of_work",
+          "system_id",
+          "link_of_system",
+          "attachment_file",
+          "priority",
+          "notes",
+          "time_required",
+          "assigned_member_1",
+          "assigned_member_2",
+          "assigned_by",
+          "remarks",
+          "status",
+          "assigned_at",
+          "approved_by",
+          "approved_at",
+          "completed_at",
+          "created_at",
+          "updated_at",
+          "github_link",
+          "is_testing_issue"
+        ],
+        "inProdNotTest": []
+      },
+      "rowCounts": {
+        "prod": "ERR",
+        "test": 5
+      }
+    },
+    {
+      "name": "task_subtasks",
+      "isView": false,
+      "prod": {
+        "exists": false,
+        "columns": []
+      },
+      "test": {
+        "exists": true,
+        "columns": [
+          "id",
+          "root_task_id",
+          "parent_subtask_id",
+          "source_testing_id",
+          "relation_type",
+          "issue_remarks",
+          "created_by",
+          "task_no",
+          "given_date",
+          "posted_by",
+          "taken_from",
+          "company_id",
+          "type_of_work",
+          "expected_date_to_close",
+          "description_of_work",
+          "system_id",
+          "link_of_system",
+          "github_link",
+          "attachment_file",
+          "priority",
+          "notes",
+          "time_required",
+          "assigned_member_1",
+          "assigned_member_2",
+          "assigned_by",
+          "remarks",
+          "status",
+          "assigned_at",
+          "approved_by",
+          "approved_at",
+          "completed_at",
+          "created_at",
+          "updated_at"
+        ]
+      },
+      "diff": {
+        "prodExists": false,
+        "testExists": true,
+        "prodCols": [],
+        "testCols": [
+          "id",
+          "root_task_id",
+          "parent_subtask_id",
+          "source_testing_id",
+          "relation_type",
+          "issue_remarks",
+          "created_by",
+          "task_no",
+          "given_date",
+          "posted_by",
+          "taken_from",
+          "company_id",
+          "type_of_work",
+          "expected_date_to_close",
+          "description_of_work",
+          "system_id",
+          "link_of_system",
+          "github_link",
+          "attachment_file",
+          "priority",
+          "notes",
+          "time_required",
+          "assigned_member_1",
+          "assigned_member_2",
+          "assigned_by",
+          "remarks",
+          "status",
+          "assigned_at",
+          "approved_by",
+          "approved_at",
+          "completed_at",
+          "created_at",
+          "updated_at"
+        ],
+        "inTestNotProd": [
+          "id",
+          "root_task_id",
+          "parent_subtask_id",
+          "source_testing_id",
+          "relation_type",
+          "issue_remarks",
+          "created_by",
+          "task_no",
+          "given_date",
+          "posted_by",
+          "taken_from",
+          "company_id",
+          "type_of_work",
+          "expected_date_to_close",
+          "description_of_work",
+          "system_id",
+          "link_of_system",
+          "github_link",
+          "attachment_file",
+          "priority",
+          "notes",
+          "time_required",
+          "assigned_member_1",
+          "assigned_member_2",
+          "assigned_by",
+          "remarks",
+          "status",
+          "assigned_at",
+          "approved_by",
+          "approved_at",
+          "completed_at",
+          "created_at",
+          "updated_at"
+        ],
+        "inProdNotTest": []
+      },
+      "rowCounts": {
+        "prod": "ERR",
+        "test": 13
+      }
+    },
+    {
+      "name": "task_subtasks_full",
+      "isView": true,
+      "prod": {
+        "exists": false,
+        "columns": []
+      },
+      "test": {
+        "exists": true,
+        "columns": [
+          "id",
+          "root_task_id",
+          "parent_subtask_id",
+          "source_testing_id",
+          "relation_type",
+          "issue_remarks",
+          "created_by",
+          "task_no",
+          "given_date",
+          "posted_by",
+          "taken_from",
+          "company_id",
+          "type_of_work",
+          "expected_date_to_close",
+          "description_of_work",
+          "system_id",
+          "link_of_system",
+          "github_link",
+          "attachment_file",
+          "priority",
+          "notes",
+          "time_required",
+          "assigned_member_1",
+          "assigned_member_2",
+          "assigned_by",
+          "remarks",
+          "status",
+          "assigned_at",
+          "approved_by",
+          "approved_at",
+          "completed_at",
+          "created_at",
+          "updated_at",
+          "root_task_no",
+          "parent_task_no",
+          "source_tester_type"
+        ]
+      },
+      "diff": null,
+      "rowCounts": null
+    },
+    {
+      "name": "task_testing",
+      "isView": false,
+      "prod": {
+        "exists": false,
+        "columns": []
+      },
+      "test": {
+        "exists": true,
+        "columns": [
+          "id",
+          "task_id",
+          "made_by",
+          "company_id",
+          "system_id",
+          "type_of_product",
+          "date_of_delivery",
+          "system_link",
+          "github_link",
+          "system_login_id",
+          "system_password",
+          "tester_id",
+          "expected_testing_date",
+          "assign_remarks",
+          "assigned_by",
+          "assigned_at",
+          "test_status",
+          "tester_remarks",
+          "tested_at",
+          "issue_task_id",
+          "db_status",
+          "db_remarks",
+          "db_checked_at",
+          "db_checked_by",
+          "db_task_id",
+          "approval_status",
+          "approval_remarks",
+          "approval_checked_at",
+          "approval_checked_by",
+          "approval_task_id",
+          "inform_status",
+          "inform_remarks",
+          "inform_checked_at",
+          "inform_checked_by",
+          "inform_task_id",
+          "created_at",
+          "updated_at",
+          "tester_type",
+          "delivery_group",
+          "subtask_id",
+          "tested_by"
+        ]
+      },
+      "diff": {
+        "prodExists": false,
+        "testExists": true,
+        "prodCols": [],
+        "testCols": [
+          "id",
+          "task_id",
+          "made_by",
+          "company_id",
+          "system_id",
+          "type_of_product",
+          "date_of_delivery",
+          "system_link",
+          "github_link",
+          "system_login_id",
+          "system_password",
+          "tester_id",
+          "expected_testing_date",
+          "assign_remarks",
+          "assigned_by",
+          "assigned_at",
+          "test_status",
+          "tester_remarks",
+          "tested_at",
+          "issue_task_id",
+          "db_status",
+          "db_remarks",
+          "db_checked_at",
+          "db_checked_by",
+          "db_task_id",
+          "approval_status",
+          "approval_remarks",
+          "approval_checked_at",
+          "approval_checked_by",
+          "approval_task_id",
+          "inform_status",
+          "inform_remarks",
+          "inform_checked_at",
+          "inform_checked_by",
+          "inform_task_id",
+          "created_at",
+          "updated_at",
+          "tester_type",
+          "delivery_group",
+          "subtask_id",
+          "tested_by"
+        ],
+        "inTestNotProd": [
+          "id",
+          "task_id",
+          "made_by",
+          "company_id",
+          "system_id",
+          "type_of_product",
+          "date_of_delivery",
+          "system_link",
+          "github_link",
+          "system_login_id",
+          "system_password",
+          "tester_id",
+          "expected_testing_date",
+          "assign_remarks",
+          "assigned_by",
+          "assigned_at",
+          "test_status",
+          "tester_remarks",
+          "tested_at",
+          "issue_task_id",
+          "db_status",
+          "db_remarks",
+          "db_checked_at",
+          "db_checked_by",
+          "db_task_id",
+          "approval_status",
+          "approval_remarks",
+          "approval_checked_at",
+          "approval_checked_by",
+          "approval_task_id",
+          "inform_status",
+          "inform_remarks",
+          "inform_checked_at",
+          "inform_checked_by",
+          "inform_task_id",
+          "created_at",
+          "updated_at",
+          "tester_type",
+          "delivery_group",
+          "subtask_id",
+          "tested_by"
+        ],
+        "inProdNotTest": []
+      },
+      "rowCounts": {
+        "prod": "ERR",
+        "test": 21
+      }
+    },
+    {
+      "name": "holidays",
+      "isView": false,
+      "prod": {
+        "exists": false,
+        "columns": []
+      },
+      "test": {
+        "exists": true,
+        "columns": []
+      },
+      "diff": {
+        "prodExists": false,
+        "testExists": true,
+        "prodCols": [],
+        "testCols": [],
+        "inTestNotProd": [],
+        "inProdNotTest": []
+      },
+      "rowCounts": {
+        "prod": "ERR",
+        "test": 0
+      }
+    },
+    {
+      "name": "delegated_tasks",
+      "isView": false,
+      "prod": {
+        "exists": false,
+        "columns": []
+      },
+      "test": {
+        "exists": true,
+        "columns": [
+          "id",
+          "serial_number",
+          "assigned_by",
+          "assigned_to",
+          "task_details",
+          "target_date",
+          "planned_date",
+          "actual_date",
+          "delay_duration",
+          "status",
+          "remarks",
+          "new_target_date",
+          "created_at",
+          "updated_at",
+          "target_time",
+          "new_target_time"
+        ]
+      },
+      "diff": {
+        "prodExists": false,
+        "testExists": true,
+        "prodCols": [],
+        "testCols": [
+          "id",
+          "serial_number",
+          "assigned_by",
+          "assigned_to",
+          "task_details",
+          "target_date",
+          "planned_date",
+          "actual_date",
+          "delay_duration",
+          "status",
+          "remarks",
+          "new_target_date",
+          "created_at",
+          "updated_at",
+          "target_time",
+          "new_target_time"
+        ],
+        "inTestNotProd": [
+          "id",
+          "serial_number",
+          "assigned_by",
+          "assigned_to",
+          "task_details",
+          "target_date",
+          "planned_date",
+          "actual_date",
+          "delay_duration",
+          "status",
+          "remarks",
+          "new_target_date",
+          "created_at",
+          "updated_at",
+          "target_time",
+          "new_target_time"
+        ],
+        "inProdNotTest": []
+      },
+      "rowCounts": {
+        "prod": "ERR",
+        "test": 2
+      }
+    },
+    {
+      "name": "checklist_tasks",
+      "isView": false,
+      "prod": {
+        "exists": false,
+        "columns": []
+      },
+      "test": {
+        "exists": true,
+        "columns": [
+          "id",
+          "assigned_by",
+          "name",
+          "task_name",
+          "task_category",
+          "task_type",
+          "description",
+          "days",
+          "status",
+          "remarks",
+          "created_at",
+          "updated_at",
+          "task_date",
+          "task_time"
+        ]
+      },
+      "diff": {
+        "prodExists": false,
+        "testExists": true,
+        "prodCols": [],
+        "testCols": [
+          "id",
+          "assigned_by",
+          "name",
+          "task_name",
+          "task_category",
+          "task_type",
+          "description",
+          "days",
+          "status",
+          "remarks",
+          "created_at",
+          "updated_at",
+          "task_date",
+          "task_time"
+        ],
+        "inTestNotProd": [
+          "id",
+          "assigned_by",
+          "name",
+          "task_name",
+          "task_category",
+          "task_type",
+          "description",
+          "days",
+          "status",
+          "remarks",
+          "created_at",
+          "updated_at",
+          "task_date",
+          "task_time"
+        ],
+        "inProdNotTest": []
+      },
+      "rowCounts": {
+        "prod": "ERR",
+        "test": 8
+      }
+    },
+    {
+      "name": "weekly_calls",
+      "isView": false,
+      "prod": {
+        "exists": false,
+        "columns": []
+      },
+      "test": {
+        "exists": true,
+        "columns": [
+          "id",
+          "party_name",
+          "responsible_person",
+          "responsible_phone",
+          "calling_person_name",
+          "task_description",
+          "calling_days",
+          "assigned_by",
+          "status",
+          "has_issue",
+          "customer_said",
+          "proof_url",
+          "created_at",
+          "updated_at",
+          "calling_time"
+        ]
+      },
+      "diff": {
+        "prodExists": false,
+        "testExists": true,
+        "prodCols": [],
+        "testCols": [
+          "id",
+          "party_name",
+          "responsible_person",
+          "responsible_phone",
+          "calling_person_name",
+          "task_description",
+          "calling_days",
+          "assigned_by",
+          "status",
+          "has_issue",
+          "customer_said",
+          "proof_url",
+          "created_at",
+          "updated_at",
+          "calling_time"
+        ],
+        "inTestNotProd": [
+          "id",
+          "party_name",
+          "responsible_person",
+          "responsible_phone",
+          "calling_person_name",
+          "task_description",
+          "calling_days",
+          "assigned_by",
+          "status",
+          "has_issue",
+          "customer_said",
+          "proof_url",
+          "created_at",
+          "updated_at",
+          "calling_time"
+        ],
+        "inProdNotTest": []
+      },
+      "rowCounts": {
+        "prod": "ERR",
+        "test": 7
+      }
+    },
+    {
+      "name": "orders",
+      "isView": false,
+      "prod": {
+        "exists": false,
+        "columns": []
+      },
+      "test": {
+        "exists": true,
+        "columns": [
+          "id",
+          "serial_number",
+          "party_name",
+          "type_of_work",
+          "start_date",
+          "end_date",
+          "value_of_order",
+          "payment_type",
+          "nda_required",
+          "nda_attachment_url",
+          "quotation_number",
+          "quotation_attachment_url",
+          "status",
+          "remarks",
+          "created_by",
+          "created_at",
+          "updated_at"
+        ]
+      },
+      "diff": {
+        "prodExists": false,
+        "testExists": true,
+        "prodCols": [],
+        "testCols": [
+          "id",
+          "serial_number",
+          "party_name",
+          "type_of_work",
+          "start_date",
+          "end_date",
+          "value_of_order",
+          "payment_type",
+          "nda_required",
+          "nda_attachment_url",
+          "quotation_number",
+          "quotation_attachment_url",
+          "status",
+          "remarks",
+          "created_by",
+          "created_at",
+          "updated_at"
+        ],
+        "inTestNotProd": [
+          "id",
+          "serial_number",
+          "party_name",
+          "type_of_work",
+          "start_date",
+          "end_date",
+          "value_of_order",
+          "payment_type",
+          "nda_required",
+          "nda_attachment_url",
+          "quotation_number",
+          "quotation_attachment_url",
+          "status",
+          "remarks",
+          "created_by",
+          "created_at",
+          "updated_at"
+        ],
+        "inProdNotTest": []
+      },
+      "rowCounts": {
+        "prod": "ERR",
+        "test": 3
+      }
+    }
+  ]
+}

@@ -229,6 +229,31 @@ export const fetchTasksWithSubtasks = async (select, applyFilters = (q) => q) =>
   return [...(main.data || []), ...(subs.data || []).map(asSubtask)].sort((a, b) => b.id - a.id);
 };
 
+/**
+ * Same as fetchTasksWithSubtasks but pages through every row (PostgREST caps one response at
+ * 1000 rows, so a plain query silently drops the rest). `applyFilters` must not set limit/range.
+ */
+export const fetchAllTasksWithSubtasks = async (select, applyFilters = (q) => q) => {
+  const PAGE = 1000;
+  const pageAll = async (table, sel) => {
+    const rows = [];
+    for (let from = 0; ; from += PAGE) {
+      const { data, error } = await applyFilters(supabase.from(table).select(sel))
+        .order("id", { ascending: true })
+        .range(from, from + PAGE - 1);
+      if (error) throw error;
+      rows.push(...(data || []));
+      if (!data || data.length < PAGE) break;
+    }
+    return rows;
+  };
+  const [main, subs] = await Promise.all([
+    pageAll("user_tasks", select),
+    pageAll("task_subtasks", subtaskSelect(select)),
+  ]);
+  return [...main, ...subs.map(asSubtask)].sort((a, b) => b.id - a.id);
+};
+
 /** "task_subtasks" if the id is a sub-task, else "user_tasks". */
 export const taskTableOf = async (id) => {
   const { data, error } = await supabase.from("task_subtasks").select("id").eq("id", id).maybeSingle();

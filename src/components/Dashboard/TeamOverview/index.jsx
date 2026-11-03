@@ -32,7 +32,7 @@ import {
   fetchDelegatedTasks,
   fetchChecklistTasks,
   fetchWeeklyCalls,
-  fetchTasksWithSubtasks,
+  fetchAllTasksWithSubtasks,
 } from "../../../services/schemaApi";
 import supabase from "../../../supabaseClient";
 import DataTable from "../shared/DataTable";
@@ -376,7 +376,7 @@ function MemberTasksModal({
     try {
       // Show tasks where this member is primary owner (M1). Matches Team Overview counts
       // and Task List queues — after forward, previous owner (now M2) no longer sees the task here.
-      const data = await fetchTasksWithSubtasks(
+      const data = await fetchAllTasksWithSubtasks(
         `
           id, task_no, given_date, description_of_work, type_of_work, priority, status,
           expected_date_to_close, time_required, completed_at, assigned_at, created_at, notes, remarks,
@@ -387,7 +387,7 @@ function MemberTasksModal({
           assigned_member_1_user:users!user_tasks_assigned_member_1_fkey ( id, name, username ),
           assigned_member_2_user:users!user_tasks_assigned_member_2_fkey ( id, name, username )
         `,
-        (q) => q.eq("assigned_member_1", member.id)
+        (q) => q.or(`assigned_member_1.eq.${member.id},assigned_member_2.eq.${member.id}`)
       );
       data.sort((a, b) => String(b.given_date || "").localeCompare(String(a.given_date || "")));
       setTasks(data);
@@ -3508,6 +3508,61 @@ export default function TeamOverview({ userFilterData, userRole }) {
           .order("name", { ascending: true });
         if (err) throw err;
         teamRows = data || [];
+
+        // Employees who are in no team: shown under a synthetic "No Team" group
+        const { data: emps, error: empErr } = await supabase
+          .from("users")
+          .select("id, name, username, role")
+          .neq("role", "company")
+          .order("name", { ascending: true });
+        if (empErr) throw empErr;
+        const inTeam = new Set();
+        teamRows.forEach((t) =>
+          (t.team_members || []).forEach((m) =>
+            inTeam.add(Number(m.user_id || m.users?.id))
+          )
+        );
+        // Legacy parity: only people credited on at least one task (assigned_member_1/2)
+        // count as members; names containing "team" / "none" / "-" are skipped.
+        const assignedIds = new Set();
+        for (let from = 0; ; from += 1000) {
+          const { data: taskRows, error: taskErr } = await supabase
+            .from("user_tasks")
+            .select("assigned_member_1, assigned_member_2")
+            .order("id", { ascending: true })
+            .range(from, from + 999);
+          if (taskErr) throw taskErr;
+          (taskRows || []).forEach((r) => {
+            if (r.assigned_member_1) assignedIds.add(Number(r.assigned_member_1));
+            if (r.assigned_member_2) assignedIds.add(Number(r.assigned_member_2));
+          });
+          if (!taskRows || taskRows.length < 1000) break;
+        }
+        const isSkippedName = (u) => {
+          const s = (u.name || u.username || "").trim().toLowerCase();
+          return !s || s.includes("team") || s === "none" || s === "-";
+        };
+        const noTeam = (emps || []).filter(
+          (u) =>
+            !inTeam.has(Number(u.id)) &&
+            assignedIds.has(Number(u.id)) &&
+            !isSkippedName(u)
+        );
+        if (noTeam.length) {
+          teamRows = [
+            ...teamRows,
+            {
+              id: "no-team",
+              name: "No Team",
+              isNoTeam: true,
+              team_members: noTeam.map((u) => ({
+                id: `nt-${u.id}`,
+                user_id: u.id,
+                users: u,
+              })),
+            },
+          ];
+        }
       }
       setTeams(teamRows);
 
@@ -3548,19 +3603,26 @@ export default function TeamOverview({ userFilterData, userRole }) {
         // After forward, previous owner becomes M2 and no longer counts as active on this task.
         // Extra fields support dashboard columns: Last Assign Date, Time Required,
         // Completion Rate, Completed On Time, Status.
-        const taskRows = await fetchTasksWithSubtasks(
-          "id, status, assigned_member_1, given_date, assigned_at, completed_at, expected_date_to_close, time_required",
-          (q) => q.in("assigned_member_1", ids)
+        // A task counts for BOTH credited members (M1 and M2), like the legacy dashboard did
+        // (legacy credited team_member_name / employee_name_1 / employee_name_2).
+        const idList = ids.join(",");
+        const taskRows = await fetchAllTasksWithSubtasks(
+          "id, status, assigned_member_1, assigned_member_2, given_date, assigned_at, completed_at, expected_date_to_close, time_required",
+          (q) => q.or(`assigned_member_1.in.(${idList}),assigned_member_2.in.(${idList})`)
         );
 
         const now = Date.now();
 
         (taskRows || []).forEach((task) => {
           const s = (task.status || "").toLowerCase();
-          const uid = task.assigned_member_1
-            ? Number(task.assigned_member_1)
-            : null;
-          if (!uid || !stats[uid]) return;
+          const owners = [
+            ...new Set(
+              [task.assigned_member_1, task.assigned_member_2]
+                .filter(Boolean)
+                .map(Number)
+            ),
+          ].filter((oid) => stats[oid]);
+          owners.forEach((uid) => {
           stats[uid].total += 1;
           // In Testing = the member finished it; only Frontend/Backend testing is left
           if (s === "completed" || s === "in testing") {
@@ -3615,6 +3677,7 @@ export default function TeamOverview({ userFilterData, userRole }) {
               }
             }
           }
+          });
         });
       }
       setTaskStats(stats);
@@ -3720,7 +3783,7 @@ export default function TeamOverview({ userFilterData, userRole }) {
                 : "bg-white text-gray-600 border border-gray-200 hover:bg-gray-50"
             }`}
           >
-            All teams ({teams.length})
+            All teams ({teams.filter((t) => !t.isNoTeam).length})
           </button>
         )}
         {teams.map((t) => (

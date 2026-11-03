@@ -244,10 +244,20 @@ export default function TaskList({
      * If the requested page is now past the end (e.g. tasks were completed/forwarded since), clamps to the last valid page.
      * @returns {Promise<{pageIndex: number, results: Array<{rows: Array, count: number|null}>}>} results aligned with `types`
      */
+    // DB-level scope: company users see only their company; plain employees only their own tasks
+    const dbScope = (() => {
+        if (isCompanyUser && companyData?.companyId != null) return { companyId: companyData.companyId };
+        if (!isCompanyUser && userFilterData && !isAdminUser && !userFilterData.showAllData) {
+            const uid = userFilterData.userId ?? userFilterData.id ?? null;
+            if (uid != null) return { memberId: uid };
+        }
+        return {};
+    })();
+
     const loadPages = async (types, pageIndex, pageSize) => {
         const fetchOne = async (taskType, idx) => {
             try {
-                return await fetchTasksByType(taskType, idx, pageSize);
+                return await fetchTasksByType(taskType, idx, pageSize, dbScope);
             } catch (err) {
                 // PostgREST returns PGRST103 ("Requested range not satisfiable") when the offset is past the end
                 if (err?.code === "PGRST103" && idx > 0) return { rows: [], count: null };
@@ -260,7 +270,7 @@ export default function TaskList({
         if (pageIndex > 0 && results.every((r) => r.rows.length === 0)) {
             let counts = results.map((r) => r.count);
             if (counts.some((c) => c == null)) {
-                counts = (await Promise.all(types.map((t) => fetchTasksByType(t, 0, pageSize)))).map((r) => r.count);
+                counts = (await Promise.all(types.map((t) => fetchTasksByType(t, 0, pageSize, dbScope)))).map((r) => r.count);
             }
             const lastIndex = Math.max(0, ...counts.map((c) => Math.ceil((c || 0) / pageSize) - 1));
             if (lastIndex !== pageIndex) {

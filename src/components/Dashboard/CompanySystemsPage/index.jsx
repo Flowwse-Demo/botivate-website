@@ -270,9 +270,9 @@ export default function CompanySystemsPage({ selectedCompanyId, userRole, setAct
       </td>
       {!isCompany && <td className="px-4 py-3 font-medium text-slate-700 whitespace-nowrap text-center align-middle">{sys.company?.name || sys.company?.company_name || "—"}</td>}
       <td className="px-4 py-3 font-mono text-xs font-semibold text-indigo-600 whitespace-nowrap text-center align-middle">{(currentPage - 1) * itemsPerPage + idx + 1}</td>
-      <td className="px-4 py-3 whitespace-nowrap text-center align-middle">{sys.department_name || "—"}</td>
-      <td className="px-4 py-3 font-medium text-slate-800 whitespace-nowrap text-center align-middle">{sys.name}</td>
-      <td className="px-4 py-3 text-xs text-slate-500 min-w-[200px] text-center align-middle">{sys.description || "—"}</td>
+      <td className="px-4 py-3 whitespace-nowrap text-center align-middle"><div className="max-w-[260px] mx-auto truncate" title={String(sys.department_name || "—" || "")}>{sys.department_name || "—"}</div></td>
+      <td className="px-4 py-3 font-medium text-slate-800 whitespace-nowrap text-center align-middle"><div className="max-w-[260px] mx-auto truncate" title={String(sys.name || "")}>{sys.name}</div></td>
+      <td className="px-4 py-3 text-xs text-slate-500 min-w-[200px] text-center align-middle"><div className="max-w-[320px] mx-auto line-clamp-3" title={sys.description || ""}>{sys.description || "—"}</div></td>
       {blank}{blank}{blank}{blank}{blank}{blank}
       {blank}{blank}{blank}{blank}{blank}{blank}
     </tr>
@@ -291,9 +291,9 @@ export default function CompanySystemsPage({ selectedCompanyId, userRole, setAct
       </td>
       {!isCompany && <td className="px-4 py-3 font-medium text-slate-700 whitespace-nowrap text-center align-middle">{sys.company?.name || sys.company?.company_name || "—"}</td>}
       <td className="px-4 py-3 font-mono text-xs font-semibold text-indigo-600 whitespace-nowrap text-center align-middle">{(currentPage - 1) * itemsPerPage + idx + 1}</td>
-      <td className="px-4 py-3 whitespace-nowrap text-center align-middle">{sys.department_name || "—"}</td>
-      <td className="px-4 py-3 font-medium text-slate-800 whitespace-nowrap text-center align-middle">{sys.name || "—"}</td>
-      <td className="px-4 py-3 text-xs text-slate-500 min-w-[200px] text-center align-middle">{sys.description || "—"}</td>
+      <td className="px-4 py-3 whitespace-nowrap text-center align-middle"><div className="max-w-[260px] mx-auto truncate" title={String(sys.department_name || "—" || "")}>{sys.department_name || "—"}</div></td>
+      <td className="px-4 py-3 font-medium text-slate-800 whitespace-nowrap text-center align-middle"><div className="max-w-[260px] mx-auto truncate" title={String(sys.name || "—" || "")}>{sys.name || "—"}</div></td>
+      <td className="px-4 py-3 text-xs text-slate-500 min-w-[200px] text-center align-middle"><div className="max-w-[320px] mx-auto line-clamp-3" title={sys.description || ""}>{sys.description || "—"}</div></td>
       <td className="px-4 py-3 text-sm font-bold text-slate-800 whitespace-nowrap text-center align-middle">{countsOf(sys).total}</td>
       <td className="px-4 py-3 text-sm font-bold text-emerald-600 whitespace-nowrap text-center align-middle">{countsOf(sys).done}</td>
       <td className="px-4 py-3 text-sm font-bold text-amber-600 whitespace-nowrap text-center align-middle">{countsOf(sys).pending}</td>

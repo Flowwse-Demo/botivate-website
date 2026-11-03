@@ -149,6 +149,11 @@ export default function AdminDashboard({
       }
 
       // Total tasks
+      // "<task_no>-M2/-M3" rows only exist so a 3rd+ assignee is counted for that member;
+      // they are not separate tasks, so admin / company totals leave them out.
+      const isMember = userRole === "employee" || userRole === "user";
+      const hideExtra = (q) => (isMember ? q : q.not("task_no", "like", "%-M_"));
+      baseQuery = hideExtra(baseQuery);
       const { count: totalCount, error: totalError } = await baseQuery;
       if (totalError) throw totalError;
       setTotalTask(totalCount || 0);
@@ -169,6 +174,7 @@ export default function AdminDashboard({
         pendingQuery = pendingQuery.eq("assigned_member_1", userFilterData.userId);
       }
 
+      pendingQuery = hideExtra(pendingQuery);
       const { count: pendingCount, error: pendingError } = await pendingQuery;
       if (pendingError) throw pendingError;
       setPendingTask(pendingCount || 0);
@@ -186,6 +192,7 @@ export default function AdminDashboard({
         completeQuery = completeQuery.eq("assigned_member_1", userFilterData.userId);
       }
 
+      completeQuery = hideExtra(completeQuery);
       const { count: completeCount, error: completeError } = await completeQuery;
       if (completeError) throw completeError;
       setCompleteTask(completeCount || 0);
@@ -426,7 +433,7 @@ export default function AdminDashboard({
 
       {/* User Tasks Modal - Only for admin */}
       {showUserModal && selectedUser && (userRole === "admin" || userRole === "superadmin") && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black bg-opacity-50">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
           <motion.div
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
@@ -436,7 +443,7 @@ export default function AdminDashboard({
             <div className="p-6 text-white bg-gradient-to-r from-blue-500 to-purple-500">
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-4">
-                  <div className="flex items-center justify-center w-12 h-12 bg-white rounded-full bg-opacity-20">
+                  <div className="flex items-center justify-center w-12 h-12 bg-white/20 rounded-full">
                     <span className="text-lg font-bold text-white">
                       {selectedUser.avatar}
                     </span>
@@ -454,7 +461,7 @@ export default function AdminDashboard({
                 </div>
                 <button
                   onClick={() => setShowUserModal(false)}
-                  className="p-2 text-white transition-colors rounded-lg hover:bg-white hover:bg-opacity-20"
+                  className="p-2 text-white transition-colors rounded-lg hover:bg-white/20"
                 >
                   <X className="w-6 h-6" />
                 </button>

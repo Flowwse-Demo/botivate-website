@@ -90,8 +90,7 @@ export const transformSupabaseData = (rawData) => {
                 row.relation_type === "Testing Issue" ||
                 (!isApprovalReject && !isInformReject && (
                     row.is_testing_issue === true ||
-                    (typeof row.description_of_work === "string" && /\[Testing issue/i.test(row.description_of_work)) ||
-                    (typeof row.type_of_work === "string" && row.type_of_work.toLowerCase().includes("error received"))
+                    (typeof row.description_of_work === "string" && /\[Testing issue/i.test(row.description_of_work))
                 ));
 
             const isRejected = isTestingReject || isApprovalReject || isInformReject;

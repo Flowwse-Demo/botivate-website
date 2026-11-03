@@ -5,7 +5,7 @@ export const fetchSupabaseData = async () => {
   try {
     let allData = [];
     let from = 0;
-    const limit = 5000;
+    const limit = 1000; // PostgREST caps one response at 1000 rows
     let keepFetching = true;
 
     while (keepFetching) {
@@ -18,6 +18,8 @@ export const fetchSupabaseData = async () => {
           assigned_member:users!user_tasks_assigned_member_1_fkey ( id, name, username ),
           assigned_by_user:users!user_tasks_assigned_by_fkey ( id, name, username )
         `)
+        .not("task_no", "like", "%-M_") // extra-assignee rows are not separate tasks
+        .order("id", { ascending: true })
         .range(from, from + limit - 1);
 
       if (error) throw error;
@@ -39,6 +41,10 @@ export const fetchSupabaseData = async () => {
             "",
           type_of_system: row.type_of_work || row.type_of_system || "",
           status_of_system: row.status || "",
+          // legacy FMS-style fields still read by the company dashboard table
+          actual3: row.status === "Completed" ? (row.completed_at || true) : null,
+          employee_name_1: row.assigned_member?.name || row.assigned_member?.username || "",
+          priority_in_customer: row.priority || row.priority_in_customer || null,
         }));
         allData = [...allData, ...normalized];
         from += limit;

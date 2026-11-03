@@ -26,7 +26,8 @@ const COMPLETED_STATUSES = ["Completed", "In Testing"];
  * @param {number} [pageSize=PAGE_SIZE]
  * @returns {Promise<{rows: Array, count: number}>}
  */
-export const fetchTasksByType = async (type, page, pageSize = PAGE_SIZE) => {
+export const fetchTasksByType = async (type, page, pageSize = PAGE_SIZE, scope = {}) => {
+    const { companyId = null, memberId = null } = scope || {};
     const from = page * pageSize;
     const to = from + pageSize - 1;
     const statuses = type === "pending" ? PENDING_STATUSES : COMPLETED_STATUSES;
@@ -40,6 +41,15 @@ export const fetchTasksByType = async (type, page, pageSize = PAGE_SIZE) => {
             .in("status", statuses);
         if (type === "pending") {
             q = q.not("assigned_member_1", "is", null);
+        }
+        // Filter in the DB, otherwise the newest-N window is taken across ALL companies/users
+        // and the per-user rows never make it into the page.
+        // company view: "<task_no>-M2/-M3" extra-assignee rows are not separate tasks
+        if (companyId != null) q = q.eq("company_id", companyId).not("task_no", "like", "%-M_");
+        if (memberId != null) {
+            q = type === "pending"
+                ? q.eq("assigned_member_1", memberId)
+                : q.or(`assigned_member_1.eq.${memberId},assigned_member_2.eq.${memberId}`);
         }
         return q.order("id", { ascending: false }).range(0, to);
     };

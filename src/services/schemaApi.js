@@ -51,13 +51,15 @@ export const fetchUsers = async () => {
   return data || [];
 };
 
+// Roles that can be picked as an assignee / person in forms (company, hod, superadmin excluded).
+export const ASSIGNEE_ROLES = ["employee", "admin"];
+
 export const fetchAssignableMembers = async (excludeUserId = null) => {
   const { data, error } = await supabase
     .from("users")
     .select("id, username, name, role")
     .eq("is_active", true)
-    // employee + hod (e.g. Rahul Sharma) — only valid user_role_enum values
-    .in("role", ["employee", "hod"])
+    .in("role", ASSIGNEE_ROLES)
     .order("name", { ascending: true });
   if (error) throw error;
   const rows = data || [];
@@ -167,7 +169,7 @@ export const fetchTakenFromUsers = async (excludeUserId = null) => {
     .from("users")
     .select("id, username, name, role")
     .eq("is_active", true)
-    .eq("role", "employee")
+    .in("role", ASSIGNEE_ROLES)
     .order("name", { ascending: true });
   if (error) throw error;
   const rows = data || [];
@@ -822,11 +824,10 @@ export const fetchDelegationUsers = async () => {
     .from("users")
     .select("id, name, username, role, is_active")
     .eq("is_active", true)
+    .in("role", ASSIGNEE_ROLES)
     .order("name", { ascending: true });
   if (error) throw error;
-  return (data || []).filter(
-    (u) => !["company"].includes(String(u.role || "").toLowerCase())
-  );
+  return data || [];
 };
 
 function daysBetween(fromDate, toDate) {

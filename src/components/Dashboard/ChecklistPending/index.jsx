@@ -728,9 +728,8 @@ const CHECKLIST_PENDING_HEADERS = [
   "Category",
   "Type",
   "Time",
-  "Days",
+  "Date",
   "Status",
-  "Created",
   "Delay",
 ];
 
@@ -741,9 +740,8 @@ const CHECKLIST_COMPLETED_HEADERS = [
   "Category",
   "Type",
   "Time",
-  "Days",
+  "Date",
   "Status",
-  "Created",
   "Actual",
   "Delay",
 ];
@@ -844,7 +842,7 @@ function useChecklistPanel({ userRole, user, userFilterData }) {
             </div>
           )}
         </td>
-        <td className="px-4 py-3 text-center text-slate-700 align-middle">{r.name || "—"}</td>
+        <td className="px-4 py-3 text-center text-slate-700 align-middle">{r.doer_name || r.name || "—"}</td>
         <td className="px-4 py-3 text-center capitalize text-slate-600 align-middle">
           {r.task_category || "—"}
         </td>
@@ -852,26 +850,19 @@ function useChecklistPanel({ userRole, user, userFilterData }) {
           {r.task_type || "—"}
         </td>
         <td className="px-4 py-3 text-center align-middle">
-          {dt.time ? (
-            <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700">
-              <Clock className="h-3 w-3 text-emerald-500" />
-              {formatTaskTime(dt.time)}
+          <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700">
+            <Clock className="h-3 w-3 text-emerald-500" />
+            {dt.time ? formatTaskTime(dt.time) : "6:00 PM"}
+          </span>
+        </td>
+        <td className="px-4 py-3 text-center align-middle">
+          {r.occurrence_date ? (
+            <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold ${r.is_today ? "bg-emerald-50 text-emerald-700" : "bg-blue-50 text-blue-700"}`}>
+              {new Date(r.occurrence_date + "T00:00:00").toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit", year: "numeric" }).replace(/\//g, "-")}
             </span>
           ) : (
             <span className="text-xs text-slate-400">—</span>
           )}
-        </td>
-        <td className="px-4 py-3 text-center align-middle">
-          <div className="flex flex-wrap justify-center gap-1">
-            {(r.days || []).map((d) => (
-              <span
-                key={d}
-                className="rounded-full bg-emerald-50 px-1.5 py-0.5 text-[10px] font-medium text-emerald-700"
-              >
-                {String(d).slice(0, 3)}
-              </span>
-            ))}
-          </div>
         </td>
         <td className="px-4 py-3 text-center align-middle">
           <span
@@ -881,9 +872,6 @@ function useChecklistPanel({ userRole, user, userFilterData }) {
           >
             {r.status || "Pending"}
           </span>
-        </td>
-        <td className="px-4 py-3 text-center text-slate-500 align-middle">
-          {formatDate(r.created_at)}
         </td>
         {statusTab === "completed" && (
           <td className="whitespace-nowrap px-4 py-3 text-center text-slate-500 align-middle">
@@ -945,17 +933,13 @@ function useChecklistPanel({ userRole, user, userFilterData }) {
           </div>
           <div>
             <span className="block text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-1">Doer</span>
-            <span className="font-semibold text-gray-900">{r.name || "—"}</span>
+            <span className="font-semibold text-gray-900">{r.assigned_to_user?.name || r.assigned_to_user?.username || r.name || "—"}</span>
           </div>
           <div>
             <span className="block text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-1">Time</span>
             <span className="font-semibold text-gray-900">
-              {dt.time ? formatTaskTime(dt.time) : "—"}
+              {dt.time ? formatTaskTime(dt.time) : "6:00 PM"}
             </span>
-          </div>
-          <div>
-            <span className="block text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-1">Created</span>
-            <span className="font-semibold text-gray-900">{formatDate(r.created_at)}</span>
           </div>
           {statusTab === "completed" && (
             <div>
@@ -976,14 +960,12 @@ function useChecklistPanel({ userRole, user, userFilterData }) {
             </span>
           </div>
           <div className="col-span-2">
-            <span className="block text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-1">Days</span>
-            <div className="flex flex-wrap gap-1">
-              {(r.days || []).map((d) => (
-                <span key={d} className="rounded-full bg-emerald-50 px-1.5 py-0.5 text-[10px] font-medium text-emerald-700">
-                  {String(d).slice(0, 3)}
-                </span>
-              ))}
-            </div>
+            <span className="block text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-1">Date</span>
+            {r.occurrence_date ? (
+              <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold ${r.is_today ? "bg-emerald-50 text-emerald-700" : "bg-blue-50 text-blue-700"}`}>
+                {r.is_today ? "Today · " : ""}{new Date(r.occurrence_date + "T00:00:00").toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit", year: "numeric" }).replace(/\//g, "-")}
+              </span>
+            ) : <span className="text-xs text-slate-400">—</span>}
           </div>
         </div>
       </div>
@@ -1061,10 +1043,9 @@ const WEEKLY_PENDING_HEADERS = [
   "Responsible",
   "Client Number",
   "Caller",
-  "Days",
+  "Date",
   "Time",
   "Status",
-  "Created",
   "Delay",
 ];
 
@@ -1074,10 +1055,9 @@ const WEEKLY_COMPLETED_HEADERS = [
   "Responsible",
   "Client Number",
   "Caller",
-  "Days",
+  "Date",
   "Time",
   "Status",
-  "Created",
   "Actual",
   "Delay",
 ];
@@ -1186,27 +1166,20 @@ function useWeeklyPanel({onEscalate}) {
           {r.calling_person_name || "—"}
         </td>
         <td className="px-4 py-3 text-center align-middle">
-          <div className="flex flex-wrap justify-center gap-1">
-            {(r.calling_days || []).map((d) => (
-              <span
-                key={d}
-                className="rounded-full bg-violet-50 px-1.5 py-0.5 text-[10px] font-medium text-violet-700"
-              >
-                {String(d).slice(0, 3)}
-              </span>
-            ))}
-          </div>
+          {r.occurrence_date ? (
+            <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold ${r.is_today ? "bg-violet-50 text-violet-700" : "bg-blue-50 text-blue-700"}`}>
+              {new Date(r.occurrence_date + "T00:00:00").toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit", year: "numeric" }).replace(/\//g, "-")}
+            </span>
+          ) : <span className="text-xs text-slate-400">—</span>}
         </td>
         <td className="px-4 py-3 text-center align-middle">
           {(() => {
             const t = getWeeklyCallTime(r);
-            return t ? (
+            return (
               <span className="inline-flex items-center gap-1 rounded-full bg-violet-50 px-2 py-0.5 text-xs font-semibold text-violet-700">
                 <Clock className="h-3 w-3 text-violet-500" />
-                {formatTaskTime(t)}
+                {t ? formatTaskTime(t) : "6:00 PM"}
               </span>
-            ) : (
-              "—"
             );
           })()}
         </td>
@@ -1218,9 +1191,6 @@ function useWeeklyPanel({onEscalate}) {
           >
             {r.status || "Pending"}
           </span>
-        </td>
-        <td className="px-4 py-3 text-center text-slate-500 align-middle">
-          {formatDate(r.created_at)}
         </td>
         {statusTab === "completed" && (
           <td className="whitespace-nowrap px-4 py-3 text-center text-slate-500 align-middle">
@@ -1291,13 +1261,15 @@ function useWeeklyPanel({onEscalate}) {
             <span className="font-semibold text-gray-900">
               {(() => {
                 const t = getWeeklyCallTime(r);
-                return t ? formatTaskTime(t) : "—";
+                return t ? formatTaskTime(t) : "6:00 PM";
               })()}
             </span>
           </div>
           <div>
-            <span className="block text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-1">Created</span>
-            <span className="font-semibold text-gray-900">{formatDate(r.created_at)}</span>
+            <span className="block text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-1">Date</span>
+            <span className="font-semibold text-gray-900">
+              {r.occurrence_date ? new Date(r.occurrence_date + "T00:00:00").toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit", year: "numeric" }).replace(/\//g, "-") : "—"}
+            </span>
           </div>
           {statusTab === "completed" && (
             <div>
@@ -1316,16 +1288,6 @@ function useWeeklyPanel({onEscalate}) {
             >
               {delay > 0 ? `+${delay}d` : "0d"}
             </span>
-          </div>
-          <div className="col-span-2">
-            <span className="block text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-1">Days</span>
-            <div className="flex flex-wrap gap-1">
-              {(r.calling_days || []).map((d) => (
-                <span key={d} className="rounded-full bg-violet-50 px-1.5 py-0.5 text-[10px] font-medium text-violet-700">
-                  {String(d).slice(0, 3)}
-                </span>
-              ))}
-            </div>
           </div>
         </div>
       </div>

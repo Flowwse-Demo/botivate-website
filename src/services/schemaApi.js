@@ -964,6 +964,17 @@ export const fetchDelegationUsers = async () => {
   return data || [];
 };
 
+export const fetchDelegationAdminUsers = async () => {
+  const { data, error } = await supabase
+    .from("users")
+    .select("id, name, username, role, is_active")
+    .eq("role", "admin")
+    .is("is_active", true)
+    .order("name", { ascending: true });
+  if (error) throw error;
+  return data || [];
+};
+
 function daysBetween(fromDate, toDate) {
   if (!fromDate || !toDate) return null;
   const a = new Date(String(fromDate).slice(0, 10) + "T00:00:00");
@@ -1173,6 +1184,7 @@ export const createChecklistTask = async (payload) => {
 
   const base = {
     assigned_by: payload.assigned_by ? Number(payload.assigned_by) : null,
+    assigned_to: payload.assigned_to ? Number(payload.assigned_to) : null,
     name: payload.name,
     task_name: payload.task_name,
     task_category: payload.task_category,
@@ -1232,10 +1244,7 @@ export const createChecklistTask = async (payload) => {
 };
 
 export const fetchChecklistTasks = async () => {
-  const { data, error } = await supabase
-    .from("checklist_tasks")
-    .select("*")
-    .order("created_at", { ascending: false });
+  const { data, error } = await supabase.rpc("get_checklist_scheduled");
   if (error) throw error;
   return data || [];
 };
@@ -1308,10 +1317,7 @@ export const createWeeklyCall = async (payload) => {
 };
 
 export const fetchWeeklyCalls = async () => {
-  const { data, error } = await supabase
-    .from("weekly_calls")
-    .select("*")
-    .order("created_at", { ascending: false });
+  const { data, error } = await supabase.rpc("get_weekly_calls_scheduled");
   if (error) throw error;
   return data || [];
 };
@@ -2035,7 +2041,7 @@ const annotateTestingNos = (rows) => {
 };
 
 /** Types of work that enter the Order System pipeline (Assign Tester → Approval → Inform). */
-export const ORDER_SYSTEM_WORK_TYPES = ["System Actual", "System Dummy"];
+export const ORDER_SYSTEM_WORK_TYPES = ["System Actual", "System Dummy", "New System"];
 
 export const fetchTaskTesting = async () => {
   const { data, error } = await supabase

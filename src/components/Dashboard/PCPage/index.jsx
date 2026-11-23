@@ -26,7 +26,6 @@ import {
 import DataTable from "../shared/DataTable";
 
 const HEADERS = [
-  "System / Party / Delegation",
   "Person",
   "Task name",
   "Planned date",
@@ -92,6 +91,99 @@ function delayDays(planned) {
   today.setHours(0, 0, 0, 0);
   if (Number.isNaN(p.getTime())) return null;
   return Math.round((today - p) / (24 * 60 * 60 * 1000));
+}
+
+const DAY_INDEX = {
+  sunday: 0, monday: 1, tuesday: 2, wednesday: 3,
+  thursday: 4, friday: 5, saturday: 6,
+  sun: 0, mon: 1, tue: 2, wed: 3, thu: 4, fri: 5, sat: 6,
+};
+
+function getChecklistDelay(task) {
+  if (!task) return null;
+  const isDone = String(task.status || "").toLowerCase() === "completed";
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  if (task.task_date) {
+    try {
+      const scheduled = new Date(task.task_date);
+      scheduled.setHours(0, 0, 0, 0);
+      if (isDone) {
+        const doneDate = task.updated_at ? new Date(task.updated_at) : today;
+        doneDate.setHours(0, 0, 0, 0);
+        const diff = Math.round((doneDate - scheduled) / (1000 * 60 * 60 * 24));
+        return diff > 0 ? diff : 0;
+      }
+      const diff = Math.round((today - scheduled) / (1000 * 60 * 60 * 24));
+      return diff > 0 ? diff : 0;
+    } catch { /* ignore */ }
+  }
+
+  if (Array.isArray(task.days) && task.days.length > 0) {
+    try {
+      const currentDayIdx = today.getDay();
+      const targetIndices = task.days
+        .map((d) => DAY_INDEX[String(d).toLowerCase()])
+        .filter((i) => i != null);
+      if (targetIndices.length > 0) {
+        let minDaysPassed = null;
+        targetIndices.forEach((targetIdx) => {
+          let daysPassed = currentDayIdx - targetIdx;
+          if (daysPassed < 0) daysPassed += 7;
+          if (minDaysPassed == null || daysPassed < minDaysPassed) minDaysPassed = daysPassed;
+        });
+        if (isDone) return 0;
+        return minDaysPassed != null && minDaysPassed > 0 ? minDaysPassed : 0;
+      }
+    } catch { /* ignore */ }
+  }
+
+  if (!isDone && task.created_at) {
+    try {
+      const created = new Date(task.created_at);
+      created.setHours(0, 0, 0, 0);
+      const diff = Math.round((today - created) / (1000 * 60 * 60 * 24));
+      return diff > 0 ? diff : 0;
+    } catch { return 0; }
+  }
+  return 0;
+}
+
+function getWeeklyCallDelay(task) {
+  if (!task) return null;
+  const isDone = String(task.status || "").toLowerCase() === "completed";
+  if (isDone) return 0;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  if (Array.isArray(task.calling_days) && task.calling_days.length > 0) {
+    try {
+      const currentDayIdx = today.getDay();
+      const targetIndices = task.calling_days
+        .map((d) => DAY_INDEX[String(d).toLowerCase()])
+        .filter((i) => i != null);
+      if (targetIndices.length > 0) {
+        let minDaysPassed = null;
+        targetIndices.forEach((targetIdx) => {
+          let daysPassed = currentDayIdx - targetIdx;
+          if (daysPassed < 0) daysPassed += 7;
+          if (minDaysPassed == null || daysPassed < minDaysPassed) minDaysPassed = daysPassed;
+        });
+        return minDaysPassed != null && minDaysPassed > 0 ? minDaysPassed : 0;
+      }
+    } catch { /* ignore */ }
+  }
+
+  if (task.created_at) {
+    try {
+      const created = new Date(task.created_at);
+      created.setHours(0, 0, 0, 0);
+      const diff = Math.round((today - created) / (1000 * 60 * 60 * 24));
+      return diff > 0 ? diff : 0;
+    } catch { return 0; }
+  }
+  return 0;
 }
 
 function MarkCompleteModal({ item, onClose, onDone }) {
@@ -474,18 +566,17 @@ export default function PCPage({ userRole = "admin", user, userFilterData }) {
         checklistMapped = (clRows || [])
           .filter((t) => String(t.status || "").toLowerCase() !== "completed")
           .map((t) => ({
-            id: t.id,
+            id: t.checklist_task_id || t.id,
             source: "checklist",
             system_name: "Checklist",
             party_name: t.task_type || "—",
-            person_name: t.name || "—",
+            person_name: t.doer_name || t.name || "—",
             context_label: `Checklist · ${t.task_category || "single"}`,
             task_name: t.task_name || "Untitled",
-            planned_date: null,
-            delay: null,
+            planned_date: t.occurrence_date || null,
+            delay: delayDays(t.occurrence_date),
             remarks: t.remarks || "",
             status: t.status,
-            days: t.days || [],
           }));
       } catch (e) {
         console.warn("checklist_tasks load:", e?.message);
@@ -505,11 +596,10 @@ export default function PCPage({ userRole = "admin", user, userFilterData }) {
             person_name: t.calling_person_name || "—",
             context_label: `Weekly · ${t.party_name || ""}`,
             task_name: t.task_description || t.party_name || "Untitled",
-            planned_date: null,
-            delay: null,
+            planned_date: t.occurrence_date || null,
+            delay: delayDays(t.occurrence_date),
             remarks: t.customer_said || "",
             status: t.status,
-            days: t.calling_days || [],
           }));
       } catch (e) {
         console.warn("weekly_calls load:", e?.message);
@@ -676,44 +766,16 @@ export default function PCPage({ userRole = "admin", user, userFilterData }) {
               )}
             </span>
             <div className="min-w-0">
-              {row.source === "delegation" ? (
-                <p className="text-sm font-medium text-slate-800">
-                  Delegation
+              <p className="text-sm font-medium text-slate-800">
+                {row.person_name || "—"}
+              </p>
+              {row.source !== "delegation" && row.source !== "checklist" && row.source !== "weekly" && (
+                <p className="text-xs text-slate-500">
+                  {row.party_name}
                 </p>
-              ) : row.source === "checklist" ? (
-                <>
-                  <p className="text-sm font-medium text-slate-800">
-                    Checklist
-                  </p>
-                  <p className="text-xs text-slate-500">
-                    {row.party_name}
-                  </p>
-                </>
-              ) : row.source === "weekly" ? (
-                <>
-                  <p className="text-sm font-medium text-slate-800">
-                    Weekly Call
-                  </p>
-                  <p className="text-xs text-slate-500">
-                    {row.party_name}
-                  </p>
-                </>
-              ) : (
-                <>
-                  <p className="flex items-center gap-1 text-sm font-medium text-slate-800">
-                    <Layers className="h-3 w-3 text-slate-400" />
-                    {row.system_name}
-                  </p>
-                  <p className="text-xs text-slate-500">
-                    {row.party_name}
-                  </p>
-                </>
               )}
             </div>
           </div>
-        </td>
-        <td className="px-4 py-3 text-sm text-slate-700 text-center align-middle">
-          {row.person_name || "—"}
         </td>
         <td className="min-w-[280px] max-w-[420px] px-4 py-3 text-center align-middle">
           <p className="whitespace-pre-wrap break-words text-sm font-medium leading-relaxed text-slate-800">

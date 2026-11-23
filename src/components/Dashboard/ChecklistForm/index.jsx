@@ -84,6 +84,7 @@ export default function ChecklistForm({
   const [users, setUsers] = useState([]);
   const [loadingUsers, setLoadingUsers] = useState(true);
   const [name, setName] = useState("");
+  const [assignedToId, setAssignedToId] = useState(null);
   const [taskName, setTaskName] = useState("");
   const [taskCategory, setTaskCategory] = useState("single");
   const [taskType, setTaskType] = useState("");
@@ -146,6 +147,7 @@ export default function ChecklistForm({
       await createChecklistTask({
         assigned_by: current.id,
         assigned_by_name: current.name,
+        assigned_to: assignedToId || null,
         name: name.trim(),
         task_name: taskName.trim(),
         task_category: taskCategory,
@@ -156,6 +158,7 @@ export default function ChecklistForm({
       });
       setSuccessMsg("Checklist task assigned successfully.");
       setName("");
+      setAssignedToId(null);
       setTaskName("");
       setTaskCategory("single");
       setTaskType("");
@@ -231,8 +234,10 @@ export default function ChecklistForm({
                 value={name}
                 onChange={(val) => {
                   setName(val);
+                  setAssignedToId(null);
                   setErrors((p) => ({ ...p, name: undefined }));
                 }}
+                onSelectUser={(u) => setAssignedToId(u?.id ?? null)}
                 users={users}
                 loading={loadingUsers}
                 error={Boolean(errors.name)}

@@ -102,9 +102,9 @@ export default function WeeklyCallsForm({
   const [loadingDropdowns, setLoadingDropdowns] = useState(true);
   const [companies, setCompanies] = useState([]);
   const [weeklyCalls, setWeeklyCalls] = useState([]);
-  const [teamUsers, setTeamUsers] = useState([]);
+  const [activeUsers, setActiveUsers] = useState([]);
 
-  // Load companies, existing weekly calls, and team members for dropdowns
+  // Load companies, existing weekly calls, and active users for dropdowns
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -125,7 +125,7 @@ export default function WeeklyCallsForm({
           setWeeklyCalls(weeklyRes.value);
         }
         if (usersRes.status === "fulfilled" && Array.isArray(usersRes.value)) {
-          setTeamUsers(usersRes.value);
+          setActiveUsers(usersRes.value);
         }
       } catch (err) {
         console.error("Error fetching dropdown options for weekly calls:", err);
@@ -231,24 +231,19 @@ export default function WeeklyCallsForm({
       }
     });
 
-    // 3. Team members / delegation users
-    teamUsers.forEach((u) => {
-      const name = (u.name || u.username || "").trim();
-      if (name && !seen.has(name.toLowerCase())) {
-        seen.add(name.toLowerCase());
-        result.push({
-          label: name,
-          value: name,
-          phone: "",
-          badge: "Team Member",
-        });
-      }
-    });
-
     return result;
-  }, [partyName, contactsByParty, weeklyCalls, teamUsers]);
+  }, [partyName, contactsByParty, weeklyCalls]);
 
   // Auto-fill phone and country code from contact
+  const callingPersonOptions = useMemo(() => {
+    return activeUsers
+      .map((u) => {
+        const name = (u.name || u.username || "").trim();
+        return name ? { label: name, value: name, badge: u.role || "user" } : null;
+      })
+      .filter(Boolean);
+  }, [activeUsers]);
+
   const applyContactPhone = (rawPhone) => {
     if (!rawPhone) return;
     const clean = String(rawPhone).trim();
@@ -446,31 +441,22 @@ export default function WeeklyCallsForm({
             </div>
 
             {/* 4. Calling Person Name */}
-            <div>
-              <label className="mb-1.5 flex items-center gap-1.5 text-sm font-medium text-slate-700">
-                <User className="h-3.5 w-3.5 text-slate-400" />
-                Calling person name <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="text"
-                value={callingPersonName}
-                onChange={(e) => {
-                  setCallingPersonName(e.target.value);
-                  setErrors((p) => ({ ...p, callingPersonName: undefined }));
-                }}
-                placeholder="Who will make the call"
-                className={`w-full rounded-xl border bg-white px-3.5 py-2.5 text-sm outline-none transition focus:ring-2 focus:ring-violet-500/40 ${
-                  errors.callingPersonName
-                    ? "border-red-300 ring-1 ring-red-100"
-                    : "border-slate-200 hover:border-slate-300"
-                }`}
-              />
-              {errors.callingPersonName && (
-                <p className="mt-1 text-xs text-red-500">
-                  {errors.callingPersonName}
-                </p>
-              )}
-            </div>
+            <ComboboxField
+              id="weekly-calling-person"
+              label="Calling person name"
+              icon={User}
+              required
+              value={callingPersonName}
+              options={callingPersonOptions}
+              loading={loadingDropdowns}
+              onChange={(val) => {
+                setCallingPersonName(val);
+                setErrors((p) => ({ ...p, callingPersonName: undefined }));
+              }}
+              placeholder="Select or type calling person"
+              error={errors.callingPersonName}
+              emptyMessage="No calling persons found. Type to add new."
+            />
 
             {/* 5. Task Description */}
             <div>

@@ -61,6 +61,7 @@ function HighlightMatch({ text = "", query = "" }) {
 export default function UserCombobox({
   value = "",
   onChange,
+  onSelectUser,
   users = [],
   loading = false,
   placeholder = "Select or type name",
@@ -163,6 +164,7 @@ export default function UserCombobox({
   const selectUser = (u) => {
     const chosenName = u.name || u.username || "";
     onChange(chosenName);
+    onSelectUser?.(u);
     setOpen(false);
     inputRef.current?.focus();
   };
@@ -170,6 +172,7 @@ export default function UserCombobox({
   const clearSelection = (e) => {
     e.stopPropagation();
     onChange("");
+    onSelectUser?.(null);
     setOpen(true);
     inputRef.current?.focus();
   };

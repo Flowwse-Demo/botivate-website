@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import {
   fetchDelegationUsers,
+  fetchDelegationAdminUsers,
   createDelegatedTask,
 } from "../../../services/schemaApi";
 
@@ -58,7 +59,10 @@ export default function DelegationForm({
 }) {
   const [users, setUsers] = useState([]);
   const [loadingUsers, setLoadingUsers] = useState(true);
+  const [adminUsers, setAdminUsers] = useState([]);
+  const [loadingAdmins, setLoadingAdmins] = useState(true);
   const [personId, setPersonId] = useState("");
+  const [assignedById, setAssignedById] = useState("");
   const [taskDetails, setTaskDetails] = useState("");
   const [targetDate, setTargetDate] = useState("");
   const [targetTime, setTargetTime] = useState("");
@@ -66,7 +70,9 @@ export default function DelegationForm({
   const [submitting, setSubmitting] = useState(false);
   const [successMsg, setSuccessMsg] = useState("");
   const [personSearch, setPersonSearch] = useState("");
+  const [adminSearch, setAdminSearch] = useState("");
   const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [adminDropdownOpen, setAdminDropdownOpen] = useState(false);
   const [listening, setListening] = useState(false);
   const recognitionRef = useRef(null);
 
@@ -86,9 +92,24 @@ export default function DelegationForm({
         if (!cancelled) setLoadingUsers(false);
       }
     })();
-    return () => {
-      cancelled = true;
-    };
+    return () => { cancelled = true; };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        setLoadingAdmins(true);
+        const rows = await fetchDelegationAdminUsers();
+        if (!cancelled) setAdminUsers(rows);
+      } catch (e) {
+        console.error("Failed to load admin users:", e);
+        if (!cancelled) setAdminUsers([]);
+      } finally {
+        if (!cancelled) setLoadingAdmins(false);
+      }
+    })();
+    return () => { cancelled = true; };
   }, []);
 
   const filteredUsers = useMemo(() => {
@@ -102,11 +123,24 @@ export default function DelegationForm({
     );
   }, [users, personSearch]);
 
+  const filteredAdminUsers = useMemo(() => {
+    const q = adminSearch.trim().toLowerCase();
+    if (!q) return adminUsers;
+    return adminUsers.filter(
+      (u) =>
+        String(u.name || "").toLowerCase().includes(q) ||
+        String(u.username || "").toLowerCase().includes(q) ||
+        String(u.role || "").toLowerCase().includes(q)
+    );
+  }, [adminUsers, adminSearch]);
+
   const selectedPerson = users.find((u) => String(u.id) === String(personId));
+  const selectedAdmin = adminUsers.find((u) => String(u.id) === String(assignedById));
 
   const validate = () => {
     const next = {};
     if (!personId) next.personId = "Select a person";
+    if (!assignedById) next.assignedById = "Select who is assigning this task";
     if (!taskDetails.trim()) next.taskDetails = "Task details are required";
     if (!targetDate) next.targetDate = "Target date is required";
     else {
@@ -134,16 +168,18 @@ export default function DelegationForm({
       await createDelegatedTask({
         task_details: taskDetails,
         assigned_to: personId,
-        assigned_by: currentUserId,
+        assigned_by: assignedById || currentUserId,
         target_date: targetDate,
         target_time: targetTime,
       });
       setSuccessMsg("Task delegated successfully.");
       setPersonId("");
+      setAssignedById("");
       setTaskDetails("");
       setTargetDate("");
       setTargetTime("");
       setPersonSearch("");
+      setAdminSearch("");
       setErrors({});
       setTimeout(() => setSuccessMsg(""), 4000);
     } catch (err) {
@@ -255,6 +291,89 @@ export default function DelegationForm({
           </div>
 
           <div className="space-y-5 p-5 sm:p-6">
+            {/* Assigned by dropdown */}
+            <div>
+              <label className="mb-1.5 flex items-center gap-1.5 text-sm font-medium text-slate-700">
+                <User className="h-3.5 w-3.5 text-slate-400" />
+                Assigned by <span className="text-red-500">*</span>
+              </label>
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => setAdminDropdownOpen((o) => !o)}
+                  className={`flex w-full items-center justify-between rounded-xl border bg-white px-3.5 py-2.5 text-left text-sm transition focus:outline-none focus:ring-2 focus:ring-indigo-500/40 ${
+                    errors.assignedById
+                      ? "border-red-300 ring-1 ring-red-100"
+                      : "border-slate-200 hover:border-slate-300"
+                  }`}
+                >
+                  <span className={selectedAdmin ? "text-slate-800" : "text-slate-400"}>
+                    {selectedAdmin
+                      ? `${selectedAdmin.name || selectedAdmin.username}${selectedAdmin.role ? ` · ${selectedAdmin.role}` : ""}`
+                      : loadingAdmins
+                        ? "Loading admins…"
+                        : "Select admin"}
+                  </span>
+                  <ChevronDown
+                    className={`h-4 w-4 text-slate-400 transition ${adminDropdownOpen ? "rotate-180" : ""}`}
+                  />
+                </button>
+
+                {adminDropdownOpen && (
+                  <div className="absolute z-30 mt-1.5 w-full overflow-hidden rounded-xl border border-slate-200 bg-white shadow-lg shadow-slate-200/60">
+                    <div className="border-b border-slate-100 p-2">
+                      <div className="relative">
+                        <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
+                        <input
+                          type="text"
+                          value={adminSearch}
+                          onChange={(e) => setAdminSearch(e.target.value)}
+                          placeholder="Search admin…"
+                          className="w-full rounded-lg border border-slate-200 py-1.5 pl-8 pr-3 text-sm outline-none focus:border-indigo-300 focus:ring-1 focus:ring-indigo-200"
+                          autoFocus
+                        />
+                      </div>
+                    </div>
+                    <ul className="max-h-72 overflow-y-auto py-1">
+                      {filteredAdminUsers.length === 0 ? (
+                        <li className="px-3 py-4 text-center text-sm text-slate-400">No admins found</li>
+                      ) : (
+                        filteredAdminUsers.map((u) => (
+                          <li key={u.id}>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setAssignedById(String(u.id));
+                                setAdminDropdownOpen(false);
+                                setAdminSearch("");
+                                setErrors((prev) => ({ ...prev, assignedById: undefined }));
+                              }}
+                              className={`flex w-full items-center gap-2.5 px-3 py-2 text-left text-sm transition hover:bg-indigo-50 ${
+                                String(assignedById) === String(u.id)
+                                  ? "bg-indigo-50 text-indigo-700"
+                                  : "text-slate-700"
+                              }`}
+                            >
+                              <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-indigo-100 text-[11px] font-bold text-indigo-600">
+                                {(u.name || u.username || "?").charAt(0).toUpperCase()}
+                              </span>
+                              <span className="min-w-0 flex-1">
+                                <span className="block truncate font-medium">{u.name || u.username}</span>
+                                <span className="block text-[11px] capitalize text-slate-400">{u.role || "admin"}</span>
+                              </span>
+                            </button>
+                          </li>
+                        ))
+                      )}
+                    </ul>
+                  </div>
+                )}
+              </div>
+              {errors.assignedById && (
+                <p className="mt-1 text-xs text-red-500">{errors.assignedById}</p>
+              )}
+            </div>
+
             {/* Person dropdown */}
             <div>
               <label className="mb-1.5 flex items-center gap-1.5 text-sm font-medium text-slate-700">
@@ -271,25 +390,15 @@ export default function DelegationForm({
                       : "border-slate-200 hover:border-slate-300"
                   }`}
                 >
-                  <span
-                    className={
-                      selectedPerson ? "text-slate-800" : "text-slate-400"
-                    }
-                  >
+                  <span className={selectedPerson ? "text-slate-800" : "text-slate-400"}>
                     {selectedPerson
-                      ? `${selectedPerson.name || selectedPerson.username}${
-                          selectedPerson.role
-                            ? ` · ${selectedPerson.role}`
-                            : ""
-                        }`
+                      ? `${selectedPerson.name || selectedPerson.username}${selectedPerson.role ? ` · ${selectedPerson.role}` : ""}`
                       : loadingUsers
                         ? "Loading people…"
                         : "Select person"}
                   </span>
                   <ChevronDown
-                    className={`h-4 w-4 text-slate-400 transition ${
-                      dropdownOpen ? "rotate-180" : ""
-                    }`}
+                    className={`h-4 w-4 text-slate-400 transition ${dropdownOpen ? "rotate-180" : ""}`}
                   />
                 </button>
 
@@ -322,10 +431,7 @@ export default function DelegationForm({
                                 setPersonId(String(u.id));
                                 setDropdownOpen(false);
                                 setPersonSearch("");
-                                setErrors((prev) => ({
-                                  ...prev,
-                                  personId: undefined,
-                                }));
+                                setErrors((prev) => ({ ...prev, personId: undefined }));
                               }}
                               className={`flex w-full items-center gap-2.5 px-3 py-2 text-left text-sm transition hover:bg-indigo-50 ${
                                 String(personId) === String(u.id)
@@ -337,12 +443,8 @@ export default function DelegationForm({
                                 {(u.name || u.username || "?").charAt(0).toUpperCase()}
                               </span>
                               <span className="min-w-0 flex-1">
-                                <span className="block truncate font-medium">
-                                  {u.name || u.username}
-                                </span>
-                                <span className="block text-[11px] capitalize text-slate-400">
-                                  {u.role || "user"}
-                                </span>
+                                <span className="block truncate font-medium">{u.name || u.username}</span>
+                                <span className="block text-[11px] capitalize text-slate-400">{u.role || "user"}</span>
                               </span>
                             </button>
                           </li>
@@ -474,9 +576,12 @@ export default function DelegationForm({
               type="button"
               onClick={() => {
                 setPersonId("");
+                setAssignedById("");
                 setTaskDetails("");
                 setTargetDate("");
                 setTargetTime("");
+                setPersonSearch("");
+                setAdminSearch("");
                 setErrors({});
                 setSuccessMsg("");
               }}

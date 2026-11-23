@@ -110,8 +110,6 @@ const Sidebar = ({ activeTab, setActiveTab, onClose, isMobile, user, userFilterD
     { id: "system-approvals", label: getTabLabel("system-approvals", userRole), icon: FileCheck2, key: "system-approvals" },
     { id: "checklist-assign", label: getTabLabel("checklist-assign", userRole), icon: UserPlus, key: "checklist-assign" },
     { id: "checklist-pending", label: getTabLabel("checklist-pending", userRole), icon: ClipboardList, key: "checklist-pending" },
-    { id: "delegation-form", label: getTabLabel("delegation-form", userRole), icon: UserPlus, key: "delegation-form" },
-    { id: "delegation-tasks", label: getTabLabel("delegation-tasks", userRole), icon: ClipboardList, key: "delegation-tasks" },
     { id: "troubleshoot", label: getTabLabel("troubleshoot", userRole), icon: Settings, key: "troubleshoot" },
     { id: "ai-helper", label: getTabLabel("ai-helper", userRole), icon: Bot, key: "ai-helper" },
     { id: "reports", label: getTabLabel("reports", userRole), icon: BarChart3, key: "reports" },
@@ -555,9 +553,8 @@ const Sidebar = ({ activeTab, setActiveTab, onClose, isMobile, user, userFilterD
           {(() => {
             // New Checklist & Delegation group (primary)
             const checklistChildIds = ["checklist-assign", "checklist-pending"]
-            // Keep legacy ids nested under same group if still visible
-            const legacyDelegationIds = ["delegation-form", "delegation-tasks"]
-            const allChecklistIds = [...checklistChildIds, ...legacyDelegationIds]
+            const legacyDelegationIds = []
+            const allChecklistIds = [...checklistChildIds]
             const orderChildIds = [
               "order-list",
               "system-approvals",
@@ -578,7 +575,7 @@ const Sidebar = ({ activeTab, setActiveTab, onClose, isMobile, user, userFilterD
                   "reports",
                 ]
             const checklistChildren = visibleTabs.filter((t) =>
-              checklistChildIds.includes(t.id) || legacyDelegationIds.includes(t.id)
+              checklistChildIds.includes(t.id)
             )
             const orderChildren = visibleTabs
               .filter((t) => orderChildIds.includes(t.id))

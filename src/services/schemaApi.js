@@ -655,7 +655,7 @@ export const SIDEBAR_PAGE_OPTIONS = [
   { key: "tester", label: "Tester" },
   { key: "approval-delivery", label: "Approval For Delivery" },
   { key: "inform-customer", label: "Inform to Customer" },
-  { key: "system-approvals", label: "System Approvals" },
+  { key: "system-approvals", label: "New System Approval" },
   { key: "troubleshoot", label: "Troubleshoot" },
   { key: "ai-helper", label: "AI System Consultant" },
   { key: "reports", label: "Reports" },

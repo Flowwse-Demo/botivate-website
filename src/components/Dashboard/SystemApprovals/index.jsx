@@ -81,8 +81,9 @@ function DecisionModal({ req, mode, onClose, onDone, approverId }) {
   );
 }
 
-/** Superadmin: approve / reject the new-system requests that companies file. */
-export default function SystemApprovals({ userFilterData }) {
+/** Admin: approve/reject new-system requests. Company: read-only view of their own requests. */
+export default function SystemApprovals({ userFilterData, userRole, companyData }) {
+  const isCompany = (userRole || "").toLowerCase() === "company";
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -112,8 +113,16 @@ export default function SystemApprovals({ userFilterData }) {
     load();
   }, [load]);
 
-  const pending = useMemo(() => rows.filter((r) => r.status === "Pending"), [rows]);
-  const history = useMemo(() => rows.filter((r) => r.status !== "Pending"), [rows]);
+  // Company users see only their own requests
+  const filteredRows = useMemo(() => {
+    if (!isCompany) return rows;
+    const cid = companyData?.companyId || companyData?.id;
+    if (!cid) return rows;
+    return rows.filter((r) => String(r.company_id) === String(cid));
+  }, [rows, isCompany, companyData]);
+
+  const pending = useMemo(() => filteredRows.filter((r) => r.status === "Pending"), [filteredRows]);
+  const history = useMemo(() => filteredRows.filter((r) => r.status !== "Pending"), [filteredRows]);
 
   const companies = useMemo(
     () => [...new Set(rows.map((r) => companyOf(r)).filter((c) => c !== "—"))].sort(),
@@ -124,7 +133,7 @@ export default function SystemApprovals({ userFilterData }) {
   const shown = useMemo(() => {
     const q = search.trim().toLowerCase();
     return (tab === "pending" ? pending : history).filter((r) => {
-      if (companyFilter !== "all" && companyOf(r) !== companyFilter) return false;
+      if (!isCompany && companyFilter !== "all" && companyOf(r) !== companyFilter) return false;
       if (priorityFilter !== "all" && r.priority !== priorityFilter) return false;
       if (tab === "history" && resultFilter !== "all" && r.status !== resultFilter) return false;
       if (!q) return true;
@@ -134,10 +143,28 @@ export default function SystemApprovals({ userFilterData }) {
         .toLowerCase()
         .includes(q);
     });
-  }, [tab, pending, history, search, companyFilter, priorityFilter, resultFilter]);
+  }, [tab, pending, history, search, companyFilter, priorityFilter, resultFilter, isCompany]);
+
+  // Company users see a status badge instead of approve/reject + no Company column
+  const companyStatusColumn = {
+    label: "Status",
+    render: (r) => (
+      <span
+        className={`inline-flex px-2 py-0.5 text-xs font-medium rounded-full ${
+          r.status === "Approved"
+            ? "bg-green-100 text-green-800"
+            : r.status === "Rejected"
+            ? "bg-red-100 text-red-800"
+            : "bg-amber-100 text-amber-800"
+        }`}
+      >
+        {r.status === "Pending" ? "Pending Approval" : r.status}
+      </span>
+    ),
+  };
 
   const base = [
-    { label: "Company", render: (r) => companyOf(r) },
+    ...(!isCompany ? [{ label: "Company", render: (r) => companyOf(r) }] : []),
     { label: "System Name", render: (r) => <span className="font-semibold">{r.system_name}</span> },
     { label: "Department", render: (r) => dash(r.department) },
     { label: "Description", render: (r) => <span className="block max-w-[320px] text-xs text-slate-500">{dash(r.description)}</span> },
@@ -157,49 +184,57 @@ export default function SystemApprovals({ userFilterData }) {
     { label: "Requested On", render: (r) => dash(formatDate(r.created_at)) },
   ];
 
-  const pendingColumns = [
-    {
-      label: "Action",
-      fullWidth: true,
-      render: (r) => (
-        <div className="flex items-center justify-center gap-2">
-          <button
-            type="button"
-            onClick={() => setDecision({ req: r, mode: "approve" })}
-            className="flex-1 px-3 py-2 text-xs font-semibold text-white rounded-md md:flex-none md:py-1 bg-emerald-600 hover:bg-emerald-700"
-          >
-            Approve
-          </button>
-          <button
-            type="button"
-            onClick={() => setDecision({ req: r, mode: "reject" })}
-            className="flex-1 px-3 py-2 text-xs font-semibold text-red-700 rounded-md md:flex-none md:py-1 bg-red-50 hover:bg-red-100"
-          >
-            Reject
-          </button>
-        </div>
-      ),
-    },
-    ...base,
-  ];
+  const pendingColumns = isCompany
+    ? [companyStatusColumn, ...base]
+    : [
+        {
+          label: "Action",
+          fullWidth: true,
+          render: (r) => (
+            <div className="flex items-center justify-center gap-2">
+              <button
+                type="button"
+                onClick={() => setDecision({ req: r, mode: "approve" })}
+                className="flex-1 px-3 py-2 text-xs font-semibold text-white rounded-md md:flex-none md:py-1 bg-emerald-600 hover:bg-emerald-700"
+              >
+                Approve
+              </button>
+              <button
+                type="button"
+                onClick={() => setDecision({ req: r, mode: "reject" })}
+                className="flex-1 px-3 py-2 text-xs font-semibold text-red-700 rounded-md md:flex-none md:py-1 bg-red-50 hover:bg-red-100"
+              >
+                Reject
+              </button>
+            </div>
+          ),
+        },
+        ...base,
+      ];
 
-  const historyColumns = [
-    {
-      label: "Result",
-      render: (r) => (
-        <span
-          className={`inline-flex px-2 py-0.5 text-xs font-medium rounded-full ${
-            r.status === "Approved" ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"
-          }`}
-        >
-          {r.status}
-        </span>
-      ),
-    },
-    { label: "Decided On", render: (r) => dash(formatDate(r.decided_at)) },
-    { label: "Remarks", render: (r) => dash(r.decision_remarks) },
-    ...base,
-  ];
+  const historyColumns = isCompany
+    ? [
+        companyStatusColumn,
+        { label: "Remarks", render: (r) => dash(r.decision_remarks) },
+        ...base,
+      ]
+    : [
+        {
+          label: "Result",
+          render: (r) => (
+            <span
+              className={`inline-flex px-2 py-0.5 text-xs font-medium rounded-full ${
+                r.status === "Approved" ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"
+              }`}
+            >
+              {r.status}
+            </span>
+          ),
+        },
+        { label: "Decided On", render: (r) => dash(formatDate(r.decided_at)) },
+        { label: "Remarks", render: (r) => dash(r.decision_remarks) },
+        ...base,
+      ];
 
   return (
     <div className="flex flex-col h-full min-h-0 gap-4">
@@ -222,18 +257,20 @@ export default function SystemApprovals({ userFilterData }) {
           />
         </div>
         <div className="grid order-4 w-full grid-cols-2 gap-2 md:contents">
-          <Select
-            value={companyFilter}
-            onChange={(e) => setCompanyFilter(e.target.value)}
-            className="col-span-2 px-4 py-2 text-sm bg-white border border-gray-200 rounded-full md:order-3 md:col-span-1 md:w-52"
-          >
-            <option value="all">All companies</option>
-            {companies.map((c) => (
-              <option key={c} value={c}>
-                {c}
-              </option>
-            ))}
-          </Select>
+          {!isCompany && (
+            <Select
+              value={companyFilter}
+              onChange={(e) => setCompanyFilter(e.target.value)}
+              className="col-span-2 px-4 py-2 text-sm bg-white border border-gray-200 rounded-full md:order-3 md:col-span-1 md:w-52"
+            >
+              <option value="all">All companies</option>
+              {companies.map((c) => (
+                <option key={c} value={c}>
+                  {c}
+                </option>
+              ))}
+            </Select>
+          )}
           <Select
             value={priorityFilter}
             onChange={(e) => setPriorityFilter(e.target.value)}

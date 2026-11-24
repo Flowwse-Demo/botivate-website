@@ -51,6 +51,11 @@ const Sidebar = ({ activeTab, setActiveTab, onClose, isMobile, user, userFilterD
 
   // Function to get dynamic tab label based on user role
   const getTabLabel = (tabId, userRole) => {
+    // Role-specific label for the system-approvals tab
+    if (tabId === "system-approvals" && (userRole || "").toLowerCase() === "company") {
+      return "My System Requests"
+    }
+
     // Role-specific label for the assign-task tab
     if (tabId === "assign-task") {
       const role = (userRole || "").toLowerCase()
@@ -89,7 +94,7 @@ const Sidebar = ({ activeTab, setActiveTab, onClose, isMobile, user, userFilterD
       "company-systems": "My Systems",
       "company-tasks": "My Tasks",
       "company-profile": "Company Profile",
-      "system-approvals": "System Approvals"
+      "system-approvals": "New System Approval"
     }
 
     return defaultLabels[tabId] || "Unknown"
@@ -157,7 +162,11 @@ const Sidebar = ({ activeTab, setActiveTab, onClose, isMobile, user, userFilterD
       const keys = Object.keys(permObj).filter((k) => permObj[k] === true)
       if (keys.length > 0) {
         if (role === "company") {
-          const companyRequired = ["dashboard", "company-systems", "company-tasks", "troubleshoot", "ai-helper", "company-profile"]
+          const companyRequired = [
+            "dashboard", "assign-task", "company-systems",
+            "company-tasks",
+            "troubleshoot", "ai-helper", "company-profile",
+          ]
           return [...new Set([...keys, ...companyRequired])]
         }
         if (role === "admin" || role === "superadmin") {
@@ -210,13 +219,19 @@ const Sidebar = ({ activeTab, setActiveTab, onClose, isMobile, user, userFilterD
         "dashboard", "assign-task", "pending-tasks", "completed-tasks", "checklist-assign", "checklist-pending", "delegation-tasks", "pc-page", "tester", "meeting", "holidays",
       ],
       company: [
-        "dashboard", "company-systems", "company-tasks", "troubleshoot", "ai-helper", "company-profile",
+        "dashboard", "assign-task", "company-systems",
+        "company-tasks",
+        "troubleshoot", "ai-helper", "company-profile",
       ],
     }
     const base = defaults[role] || ["dashboard"]
     // Always merge company required pages even if DB has partial permissions
     if (role === "company") {
-      const companyRequired = ["dashboard", "company-systems", "company-tasks", "troubleshoot", "ai-helper", "company-profile"]
+      const companyRequired = [
+        "dashboard", "assign-task", "company-systems",
+        "company-tasks",
+        "troubleshoot", "ai-helper", "company-profile",
+      ]
       return [...new Set([...base, ...companyRequired])]
     }
     if (role === "admin" || role === "superadmin") {
@@ -278,15 +293,19 @@ const Sidebar = ({ activeTab, setActiveTab, onClose, isMobile, user, userFilterD
         if (!error && row && row.permission) {
           const perm = parsePermission(row.permission)
           if (perm) {
+            const dbRole = (row.role || "").toLowerCase()
             let newPerms
-            if (row.role === "superadmin" || perm.all === true) {
+            if (dbRole === "superadmin" || perm.all === true) {
               newPerms = ["all"]
             } else {
               const keys = Object.keys(perm).filter((k) => perm[k] === true)
               const base = keys.length > 0 ? keys : ["dashboard"]
-              // Always ensure company accounts see their required pages
-              const companyRequired = ["dashboard", "company-systems", "company-tasks", "troubleshoot", "ai-helper", "company-profile"]
-              newPerms = row.role === "company" ? [...new Set([...base, ...companyRequired])] : base
+              const companyRequired = [
+                "dashboard", "assign-task", "company-systems",
+                "company-tasks",
+                "troubleshoot", "ai-helper", "company-profile",
+              ]
+              newPerms = dbRole === "company" ? [...new Set([...base, ...companyRequired])] : base
             }
             setUserPermissions(newPerms)
             try {
@@ -313,11 +332,20 @@ const Sidebar = ({ activeTab, setActiveTab, onClose, isMobile, user, userFilterD
       if (e.detail?.permission) {
         const perm = parsePermission(e.detail.permission)
         if (perm) {
-          const newPerms =
-            perm.all === true
-              ? ["all"]
-              : Object.keys(perm).filter((k) => perm[k] === true)
-          setUserPermissions(newPerms.length > 0 ? newPerms : ["dashboard"])
+          const sessRole = (e.detail.role || e.detail.type || userInfo?.role || userInfo?.type || "").toLowerCase()
+          const companyRequired = [
+            "dashboard", "assign-task", "company-systems",
+            "company-tasks",
+            "troubleshoot", "ai-helper", "company-profile",
+          ]
+          if (perm.all === true) {
+            setUserPermissions(["all"])
+          } else {
+            const keys = Object.keys(perm).filter((k) => perm[k] === true)
+            const base = keys.length > 0 ? keys : ["dashboard"]
+            const merged = sessRole === "company" ? [...new Set([...base, ...companyRequired])] : base
+            setUserPermissions(merged)
+          }
         }
       }
     }
@@ -350,10 +378,9 @@ const Sidebar = ({ activeTab, setActiveTab, onClose, isMobile, user, userFilterD
       "tester",
       "approval-delivery",
       "inform-customer",
-      "system-approvals",
-      // Company accounts use the combined "My Tasks" page instead of separate pending/completed pages
       "pending-tasks",
       "completed-tasks",
+      "system-approvals",
     ]
 
     const visible = allTabs.filter((tab) => {
@@ -367,7 +394,6 @@ const Sidebar = ({ activeTab, setActiveTab, onClose, isMobile, user, userFilterD
 
       // 3. Full access granted
       if (hasAll) {
-        if (tab.id === "system-approvals") return false
         return true
       }
 
@@ -395,8 +421,16 @@ const Sidebar = ({ activeTab, setActiveTab, onClose, isMobile, user, userFilterD
     return visible.length > 0 ? visible : [allTabs[0]] // At least show dashboard
   }
 
-  // company accounts get a fixed order: Dashboard, My Systems, Troubleshoot, AI Consultant, Company Profile
-  const COMPANY_TAB_ORDER = ["overview", "company-systems", "company-tasks", "troubleshoot", "ai-helper", "company-profile"]
+  // company accounts get a fixed order covering all their pages
+  const COMPANY_TAB_ORDER = [
+    "overview",
+    "assign-task",
+    "company-systems",
+    "company-tasks",
+    "troubleshoot",
+    "ai-helper",
+    "company-profile",
+  ]
   const isCompanyRole = (userInfo?.role || userInfo?.type || "").toLowerCase() === "company"
   const visibleTabs = isCompanyRole
     ? [...getVisibleTabs()].sort((x, y) => {
@@ -555,14 +589,9 @@ const Sidebar = ({ activeTab, setActiveTab, onClose, isMobile, user, userFilterD
             const checklistChildIds = ["checklist-assign", "checklist-pending"]
             const legacyDelegationIds = []
             const allChecklistIds = [...checklistChildIds]
-            const orderChildIds = [
-              "order-list",
-              "system-approvals",
-              "assign-tester",
-              "tester",
-              "approval-delivery",
-              "inform-customer",
-            ]
+            const orderChildIds = isCompanyRole
+              ? ["order-list", "assign-tester", "tester", "approval-delivery", "inform-customer"]
+              : ["order-list", "system-approvals", "assign-tester", "tester", "approval-delivery", "inform-customer"]
             // company accounts have no "Party System and Updation" group: Troubleshoot is a normal item
             const tasksChildIds = isCompanyRole
               ? []

@@ -334,9 +334,14 @@ export default function AdminDashboard({
       return role === "admin" || role === "superadmin" || !!currentPermObj?.["mis-tasks"];
     }
 
-    // Company systems / tasks drilldown: always allowed for company role
-    if (activeTab === "company-systems" || activeTab === "company-tasks") {
-      if (role === "company") return true;
+    // Company tabs: always allowed for company role
+    if (role === "company") {
+      const companyAllowed = [
+        "company-systems", "company-tasks", "company-profile",
+        "pending-tasks", "completed-tasks", "system-approvals", "assign-task",
+        "troubleshoot", "ai-helper",
+      ]
+      if (companyAllowed.includes(activeTab)) return true;
     }
 
     let currentPag = null;
@@ -541,7 +546,7 @@ export default function AdminDashboard({
       case "tester":
         return <Tester userRole={userRole} userFilterData={userFilterData} />;
       case "system-approvals":
-        return <SystemApprovals userFilterData={userFilterData} />;
+        return <SystemApprovals userFilterData={userFilterData} userRole={userRole} companyData={companyData} />;
       case "company-profile":
         return <CompanyProfile companyData={companyData} />;
       case "inform-customer":

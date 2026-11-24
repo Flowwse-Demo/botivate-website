@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { Clock, History, RefreshCw } from "lucide-react";
-import { formatDate } from "../../../utils/dateFormatters";
+import { formatDate, formatDateTime, addWorkingHours, calcDelay } from "../../../utils/dateFormatters";
 import {
   fetchTaskTesting,
   fetchAssignableMembers,
@@ -195,6 +195,28 @@ export default function AssignTesterPage({ userFilterData }) {
 
   const delivery = [dc.dispatch, dc.taskId, dc.testerType, dc.madeBy, dc.company, dc.system, dc.product, dc.delivered, dc.link, dc.github, dc.id, dc.pass];
 
+  const plannedDateCol = {
+    label: "Planned Date",
+    render: (r) => {
+      const planned = addWorkingHours(r.created_at, 2);
+      return planned ? formatDateTime(planned) : "—";
+    },
+  };
+  const delayCol = {
+    label: "Delay",
+    render: (r) => {
+      const planned = addWorkingHours(r.created_at, 2);
+      const actual = r.expected_testing_date || null;
+      const delay = calcDelay(planned, actual);
+      if (!delay) return "—";
+      return (
+        <span className={`inline-flex px-2 py-0.5 text-xs font-medium rounded-full ${delay.overdue ? "bg-red-100 text-red-800" : "bg-green-100 text-green-800"}`}>
+          {delay.text}
+        </span>
+      );
+    },
+  };
+
   const pendingColumns = [
     {
       label: "Action",
@@ -208,6 +230,8 @@ export default function AssignTesterPage({ userFilterData }) {
         </button>
       ),
     },
+    plannedDateCol,
+    delayCol,
     ...delivery,
   ];
 
@@ -215,6 +239,8 @@ export default function AssignTesterPage({ userFilterData }) {
     { label: "Assign Date", render: (r) => dash(formatDate(r.expected_testing_date)) },
     { label: "Tester", render: (r) => dash(r.tester?.name) },
     { label: "Remarks", render: (r) => dash(r.assign_remarks) },
+    plannedDateCol,
+    delayCol,
     ...delivery,
   ];
 

@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { Clock, History, RefreshCw } from "lucide-react";
-import { formatDate } from "../../../utils/dateFormatters";
+import { formatDate, formatDateTime, addWorkingHours, calcDelay } from "../../../utils/dateFormatters";
 import { fetchInformRows, submitInformResult } from "../../../services/schemaApi";
 import { LoadingIndicator, ErrorMessage } from "../shared/StatusIndicators";
 import Modal, { Field, ReadOnlyField, inputClass } from "../shared/Modal";
@@ -130,6 +130,28 @@ export default function InformToCustomer({ userFilterData }) {
 
   const delivery = [dc.dispatch, taskIds, dc.madeBy, dc.company, dc.system, dc.product, dc.delivered, dc.link, dc.github, dc.id, dc.pass];
 
+  const plannedDateCol = {
+    label: "Planned Date",
+    render: (r) => {
+      const planned = r.approval_checked_at ? addWorkingHours(r.approval_checked_at, 4) : null;
+      return planned ? formatDateTime(planned) : "—";
+    },
+  };
+  const delayCol = {
+    label: "Delay",
+    render: (r) => {
+      const planned = r.approval_checked_at ? addWorkingHours(r.approval_checked_at, 4) : null;
+      const actual = r.inform_checked_at || null;
+      const delay = calcDelay(planned, actual);
+      if (!delay) return "—";
+      return (
+        <span className={`inline-flex px-2 py-0.5 text-xs font-medium rounded-full ${delay.overdue ? "bg-red-100 text-red-800" : "bg-green-100 text-green-800"}`}>
+          {delay.text}
+        </span>
+      );
+    },
+  };
+
   const pendingColumns = [
     {
       label: "Action",
@@ -143,6 +165,8 @@ export default function InformToCustomer({ userFilterData }) {
         </button>
       ),
     },
+    plannedDateCol,
+    delayCol,
     ...delivery,
   ];
 
@@ -161,6 +185,8 @@ export default function InformToCustomer({ userFilterData }) {
     },
     ...actionByColumns({ status: "inform_status", by: "inform_checked_by", at: "inform_checked_at", fail: "Not Done" }),
     { label: "Remarks", render: (r) => dash(r.inform_remarks) },
+    plannedDateCol,
+    delayCol,
     reworkColumn("Inform Not Done"),
     ...delivery,
   ];

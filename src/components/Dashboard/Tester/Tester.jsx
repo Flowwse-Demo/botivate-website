@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { Clock, History, RefreshCw } from "lucide-react";
-import { formatDate } from "../../../utils/dateFormatters";
+import { formatDate, formatDateTime, calcDelay } from "../../../utils/dateFormatters";
 import { fetchTaskTesting, submitTesterResult } from "../../../services/schemaApi";
 import { LoadingIndicator, ErrorMessage } from "../shared/StatusIndicators";
 import Modal, { Field, ReadOnlyField, inputClass } from "../shared/Modal";
@@ -124,6 +124,27 @@ export default function Tester({ userRole, userFilterData }) {
 
   const delivery = [dc.dispatch, dc.taskId, dc.testerType, dc.madeBy, dc.company, dc.system, dc.product, dc.delivered, dc.link, dc.github, dc.id, dc.pass];
 
+  const plannedDateCol = {
+    label: "Planned Date",
+    render: (r) => {
+      return r.expected_testing_date ? formatDateTime(r.expected_testing_date) : "—";
+    },
+  };
+  const delayCol = {
+    label: "Delay",
+    render: (r) => {
+      const planned = r.expected_testing_date;
+      const actual = r.tested_at || null;
+      const delay = calcDelay(planned, actual);
+      if (!delay) return "—";
+      return (
+        <span className={`inline-flex px-2 py-0.5 text-xs font-medium rounded-full ${delay.overdue ? "bg-red-100 text-red-800" : "bg-green-100 text-green-800"}`}>
+          {delay.text}
+        </span>
+      );
+    },
+  };
+
   const pendingColumns = [
     {
       label: "Action",
@@ -137,6 +158,8 @@ export default function Tester({ userRole, userFilterData }) {
         </button>
       ),
     },
+    plannedDateCol,
+    delayCol,
     ...delivery,
   ];
 
@@ -155,6 +178,8 @@ export default function Tester({ userRole, userFilterData }) {
     },
     ...actionByColumns({ status: "test_status", by: "tested_by", at: "tested_at", fail: "Issue" }),
     { label: "Remarks", render: (r) => dash(r.tester_remarks) },
+    plannedDateCol,
+    delayCol,
     reworkColumn("Testing Issue"),
     ...delivery,
   ];

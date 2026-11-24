@@ -27,12 +27,34 @@ export function CopyButton({ text, label = "" }) {
   );
 }
 
+const isNA = (val) => {
+  if (!val) return true;
+  const s = String(val).trim().toLowerCase();
+  return (
+    s === "" ||
+    s === "na" ||
+    s === "n/a" ||
+    s === "n.a" ||
+    s === "null" ||
+    s === "undefined" ||
+    s === "—" ||
+    s === "-" ||
+    s === "none"
+  );
+};
+
 export function TaskAccessCell({ task }) {
-  const appLink = task.linkOfSystem || "";
-  const gitLink = task.githubLink || "";
-  const loginId = task.systemLoginId || "";
-  const password = task.systemPassword || "";
+  const rawAppLink = task.linkOfSystem || "";
+  const rawGitLink = task.githubLink || "";
+  const rawLoginId = task.systemLoginId || "";
+  const rawPassword = task.systemPassword || "";
   const [showPassword, setShowPassword] = useState(false);
+
+  // If link or credentials are "NA", treat them as empty
+  const appLink = isNA(rawAppLink) ? "" : String(rawAppLink).trim();
+  const gitLink = isNA(rawGitLink) ? "" : String(rawGitLink).trim();
+  const loginId = isNA(rawLoginId) ? "" : String(rawLoginId).trim();
+  const password = isNA(rawPassword) ? "" : String(rawPassword).trim();
 
   const hasCredentials = Boolean(loginId || password);
   const hasLinks = Boolean(appLink || gitLink);

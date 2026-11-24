@@ -1,6 +1,6 @@
 import React from "react";
 import { FileText, Send, AlertTriangle } from "lucide-react";
-import { formatDateToDDMMYY } from "../../../utils/dateFormatters";
+import { formatDateToDDMMYY, formatDateTime, calcDelay } from "../../../utils/dateFormatters";
 import {
   getPriorityColor,
   getStatusBadgeClass,
@@ -73,7 +73,8 @@ function renderCell(column, task, type) {
     if (type === "completed" || isSystemWork || task.systemLoginId || task.systemPassword) {
       return <TaskAccessCell task={task} />;
     }
-    if (!value) return <span className="text-gray-400">—</span>;
+    const isValNA = !value || /^(na|n\/a|null|undefined|—|-)$/i.test(String(value).trim());
+    if (isValNA) return <span className="text-gray-400">—</span>;
     return (
       <a
         href={value}
@@ -233,6 +234,8 @@ export default function TaskTable({
           : COL[column.key]?.width,
     })),
     ...(!isCompanyUser ? [{ label: "Status", width: COL.status.width }] : []),
+    { label: "Planned Date", width: 150 },
+    { label: "Delay", width: 120 },
   ];
 
   const renderRow = (task) => {
@@ -384,6 +387,25 @@ export default function TaskTable({
           </span>
         </td>
       )}
+        <td className={tdClass} style={{ width: 150, minWidth: 150 }}>
+          <span className="whitespace-nowrap">
+            {task.timeRequired ? task.timeRequired : <EmptyDash />}
+          </span>
+        </td>
+        <td className={tdClass} style={{ width: 120, minWidth: 120 }}>
+          {(() => {
+            if (!task.expectedDateRaw && !task.timeRequired) return <EmptyDash />;
+            const plannedRaw = task.expectedDateRaw || task.timeRequired;
+            const actual = task.actual2 || null;
+            const delay = calcDelay(plannedRaw, actual);
+            if (!delay) return <EmptyDash />;
+            return (
+              <span className={`inline-flex px-2 py-0.5 text-xs font-medium rounded-full whitespace-nowrap ${delay.overdue ? "bg-red-100 text-red-800" : "bg-green-100 text-green-800"}`}>
+                {delay.text}
+              </span>
+            );
+          })()}
+        </td>
     </tr>
   );
 };
@@ -409,7 +431,7 @@ export default function TaskTable({
       data={filteredTasks}
       renderRow={renderRow}
       renderCard={renderCard}
-      minWidth={type === "completed" ? "min-w-[1750px]" : "min-w-[1650px]"}
+      minWidth={type === "completed" ? "min-w-[2020px]" : "min-w-[1920px]"}
       currentPage={currentPage}
       totalPages={totalPages}
       itemsPerPage={itemsPerPage}

@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { Clock, History, RefreshCw } from "lucide-react";
-import { formatDate } from "../../../utils/dateFormatters";
+import { formatDate, formatDateTime, addWorkingHours, calcDelay } from "../../../utils/dateFormatters";
 import { fetchApprovalRows, submitApprovalResult, activePartsOf } from "../../../services/schemaApi";
 import { LoadingIndicator, ErrorMessage } from "../shared/StatusIndicators";
 import Modal, { Field, ReadOnlyField, inputClass } from "../shared/Modal";
@@ -125,6 +125,42 @@ export default function ApprovalForDelivery({ userFilterData }) {
 
   const delivery = [dc.dispatch, taskIds, dc.madeBy, dc.company, dc.system, dc.product, dc.delivered, dc.link, dc.github, dc.id, dc.pass];
 
+  const getLatestTestedAt = (r) => {
+    const parts = r.parts || [r];
+    let latest = null;
+    for (const p of parts) {
+      if (p.tested_at) {
+        const d = new Date(p.tested_at);
+        if (!isNaN(d.getTime()) && (!latest || d > latest)) latest = d;
+      }
+    }
+    return latest;
+  };
+
+  const plannedDateCol = {
+    label: "Planned Date",
+    render: (r) => {
+      const testedAt = getLatestTestedAt(r);
+      const planned = testedAt ? addWorkingHours(testedAt, 4) : null;
+      return planned ? formatDateTime(planned) : "—";
+    },
+  };
+  const delayCol = {
+    label: "Delay",
+    render: (r) => {
+      const testedAt = getLatestTestedAt(r);
+      const planned = testedAt ? addWorkingHours(testedAt, 4) : null;
+      const actual = r.approval_checked_at || null;
+      const delay = calcDelay(planned, actual);
+      if (!delay) return "—";
+      return (
+        <span className={`inline-flex px-2 py-0.5 text-xs font-medium rounded-full ${delay.overdue ? "bg-red-100 text-red-800" : "bg-green-100 text-green-800"}`}>
+          {delay.text}
+        </span>
+      );
+    },
+  };
+
   const pendingColumns = [
     {
       label: "Action",
@@ -138,6 +174,8 @@ export default function ApprovalForDelivery({ userFilterData }) {
         </button>
       ),
     },
+    plannedDateCol,
+    delayCol,
     ...delivery,
   ];
 
@@ -156,6 +194,8 @@ export default function ApprovalForDelivery({ userFilterData }) {
     },
     ...actionByColumns({ status: "approval_status", by: "approval_checked_by", at: "approval_checked_at", fail: "Not Done" }),
     { label: "Remarks", render: (r) => dash(r.approval_remarks) },
+    plannedDateCol,
+    delayCol,
     reworkColumn("Approval Not Done"),
     ...delivery,
   ];

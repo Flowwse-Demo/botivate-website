@@ -93,6 +93,30 @@ function delayDays(planned) {
   return Math.round((today - p) / (24 * 60 * 60 * 1000));
 }
 
+function resolveTime(explicitTime, rawDateVal) {
+  if (explicitTime) {
+    const t = String(explicitTime).trim();
+    if (/^\d{1,2}:\d{2}/.test(t)) return t.slice(0, 5);
+  }
+  if (!rawDateVal) return "18:00";
+  const str = String(rawDateVal);
+  if (/^\d{4}-\d{2}-\d{2}$/.test(str)) return "18:00";
+  const d = new Date(str);
+  if (isNaN(d.getTime())) return "18:00";
+  if (d.getUTCHours() === 0 && d.getUTCMinutes() === 0) return "18:00";
+  return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+}
+
+function hasNoTime(explicitTime, rawDateVal) {
+  if (explicitTime && /^\d{1,2}:\d{2}/.test(String(explicitTime).trim())) return false;
+  if (!rawDateVal) return false;
+  const str = String(rawDateVal);
+  if (/^\d{4}-\d{2}-\d{2}$/.test(str)) return true;
+  const d = new Date(str);
+  if (isNaN(d.getTime())) return false;
+  return d.getUTCHours() === 0 && d.getUTCMinutes() === 0;
+}
+
 const DAY_INDEX = {
   sunday: 0, monday: 1, tuesday: 2, wednesday: 3,
   thursday: 4, friday: 5, saturday: 6,
@@ -500,9 +524,11 @@ export default function PCPage({ userRole = "admin", user, userFilterData }) {
         const party =
           t.company?.company_name || t.company?.name || "Unknown party";
         const system = t.systems?.name || "—";
-        const planned = t.expected_date_to_close
-          ? String(t.expected_date_to_close).slice(0, 10)
+        const rawPlanned = t.expected_date_to_close || null;
+        const planned = rawPlanned
+          ? String(rawPlanned).slice(0, 10)
           : null;
+        const needsSave = rawPlanned && hasNoTime(null, rawPlanned);
         return {
           id: t.id,
           source: "party",
@@ -515,6 +541,10 @@ export default function PCPage({ userRole = "admin", user, userFilterData }) {
           context_label: `${party} · ${system}`,
           task_name: t.description_of_work || t.task_no || "Untitled",
           planned_date: planned,
+          planned_time: resolveTime(null, rawPlanned),
+          _needs_time_save: needsSave,
+          _time_save_field: "expected_date_to_close",
+          _time_save_date: planned,
           delay: delayDays(planned),
           remarks: t.remarks || "",
           status: t.status,
@@ -533,11 +563,12 @@ export default function PCPage({ userRole = "admin", user, userFilterData }) {
             return Number(t.assigned_to) === Number(currentUserId);
           })
           .map((t) => {
-            const planned = t.planned_date
-              ? String(t.planned_date).slice(0, 10)
-              : t.target_date
-                ? String(t.target_date).slice(0, 10)
-                : null;
+            const rawPlanned = t.planned_date || t.target_date || null;
+            const planned = rawPlanned
+              ? String(rawPlanned).slice(0, 10)
+              : null;
+            const explicitTime = t.target_time || null;
+            const needsSave = !explicitTime && rawPlanned && hasNoTime(null, rawPlanned);
             return {
               id: t.id,
               source: "delegation",
@@ -548,6 +579,10 @@ export default function PCPage({ userRole = "admin", user, userFilterData }) {
               context_label: "Delegation",
               task_name: t.task_details || "Untitled",
               planned_date: planned,
+              planned_time: resolveTime(explicitTime, rawPlanned),
+              _needs_time_save: needsSave,
+              _time_save_field: "target_time",
+              _time_save_date: planned,
               delay: delayDays(planned),
               remarks: t.remarks || "",
               status: t.status,
@@ -565,7 +600,10 @@ export default function PCPage({ userRole = "admin", user, userFilterData }) {
         const clRows = await fetchChecklistTasks();
         checklistMapped = (clRows || [])
           .filter((t) => String(t.status || "").toLowerCase() !== "completed")
-          .map((t) => ({
+          .map((t) => {
+            const explicitTime = t.task_time || null;
+            const needsSave = !explicitTime;
+            return {
             id: t.checklist_task_id || t.id,
             source: "checklist",
             system_name: "Checklist",
@@ -574,33 +612,62 @@ export default function PCPage({ userRole = "admin", user, userFilterData }) {
             context_label: `Checklist · ${t.task_category || "single"}`,
             task_name: t.task_name || "Untitled",
             planned_date: t.occurrence_date || null,
+            planned_time: resolveTime(explicitTime, t.occurrence_date),
+            _needs_time_save: needsSave && !!t.occurrence_date,
+            _time_save_field: "task_time",
+            _time_save_date: t.occurrence_date,
+            _checklist_task_id: t.checklist_task_id || null,
             delay: delayDays(t.occurrence_date),
             remarks: t.remarks || "",
             status: t.status,
-          }));
+          };
+          });
       } catch (e) {
         console.warn("checklist_tasks load:", e?.message);
       }
 
-      // Weekly calls pending
+      // Weekly calls pending (current week only)
       let weeklyMapped = [];
       try {
         const wkRows = await fetchWeeklyCalls();
+        const now = new Date();
+        now.setHours(0, 0, 0, 0);
+        const dow = now.getDay();
+        const diffMon = dow === 0 ? 6 : dow - 1;
+        const weekStart = new Date(now);
+        weekStart.setDate(now.getDate() - diffMon);
+        const weekEnd = new Date(weekStart);
+        weekEnd.setDate(weekStart.getDate() + 6);
         weeklyMapped = (wkRows || [])
-          .filter((t) => String(t.status || "").toLowerCase() !== "completed")
-          .map((t) => ({
-            id: t.id,
-            source: "weekly",
-            system_name: "Weekly Call",
-            party_name: t.party_name || "—",
-            person_name: t.calling_person_name || "—",
-            context_label: `Weekly · ${t.party_name || ""}`,
-            task_name: t.task_description || t.party_name || "Untitled",
-            planned_date: t.occurrence_date || null,
-            delay: delayDays(t.occurrence_date),
-            remarks: t.customer_said || "",
-            status: t.status,
-          }));
+          .filter((t) => {
+            if (String(t.status || "").toLowerCase() === "completed") return false;
+            if (!t.occurrence_date) return true;
+            const d = new Date(t.occurrence_date + "T00:00:00");
+            if (isNaN(d)) return true;
+            d.setHours(0, 0, 0, 0);
+            return d >= weekStart && d <= weekEnd;
+          })
+          .map((t) => {
+            const explicitTime = t.calling_time || null;
+            const needsSave = !explicitTime;
+            return {
+              id: t.id,
+              source: "weekly",
+              system_name: "Weekly Call",
+              party_name: t.party_name || "—",
+              person_name: t.calling_person_name || "—",
+              context_label: `Weekly · ${t.party_name || ""}`,
+              task_name: t.task_description || t.party_name || "Untitled",
+              planned_date: t.occurrence_date || null,
+              planned_time: resolveTime(explicitTime, t.occurrence_date),
+              _needs_time_save: needsSave && !!t.occurrence_date,
+              _time_save_field: "calling_time",
+              _time_save_date: t.occurrence_date,
+              delay: delayDays(t.occurrence_date),
+              remarks: t.customer_said || "",
+              status: t.status,
+            };
+          });
       } catch (e) {
         console.warn("weekly_calls load:", e?.message);
       }
@@ -624,6 +691,44 @@ export default function PCPage({ userRole = "admin", user, userFilterData }) {
     load();
   }, [load]);
 
+  const savedTimeRef = useRef(new Set());
+  useEffect(() => {
+    const toSave = rows.filter(
+      (r) => r._needs_time_save && !savedTimeRef.current.has(`${r.source}_${r.id}`)
+    );
+    if (toSave.length === 0) return;
+    const TABLE_MAP = {
+      party: "user_tasks",
+      delegation: "delegated_tasks",
+      checklist: "checklist_tasks",
+      weekly: "weekly_calls",
+    };
+    (async () => {
+      for (const r of toSave) {
+        const key = `${r.source}_${r.id}`;
+        const table = TABLE_MAP[r.source];
+        const field = r._time_save_field;
+        if (!table || !field) continue;
+        try {
+          const taskId = r.source === "checklist" && r._checklist_task_id
+            ? r._checklist_task_id
+            : r.id;
+          let value = "18:00";
+          if (r.source === "party" && r._time_save_date) {
+            const d = new Date(r._time_save_date + "T18:00:00");
+            value = d.toISOString();
+          }
+          await supabase
+            .from(table)
+            .update({ [field]: value })
+            .eq("id", taskId);
+          savedTimeRef.current.add(key);
+        } catch (e) {
+          console.warn("Failed to save default time for task", r.id, e);
+        }
+      }
+    })();
+  }, [rows]);
 
   const rowKey = (row) => `${row.source}-${row.id}`;
   const saveTimersRef = useRef({});
@@ -783,7 +888,12 @@ export default function PCPage({ userRole = "admin", user, userFilterData }) {
           </p>
         </td>
         <td className="whitespace-nowrap px-4 py-3 text-sm text-slate-600 text-center align-middle">
-          {formatDate(row.planned_date)}
+          <div className="flex flex-col items-center">
+            <span>{formatDate(row.planned_date)}</span>
+            {row.planned_time && (
+              <span className="text-xs text-slate-400">{row.planned_time}</span>
+            )}
+          </div>
         </td>
         <td className="whitespace-nowrap px-4 py-3 text-sm text-center align-middle">
           {d == null ? (
@@ -851,6 +961,9 @@ export default function PCPage({ userRole = "admin", user, userFilterData }) {
           <div>
             <span className="block text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-1">Planned Date</span>
             <span className="font-semibold text-gray-900">{formatDate(row.planned_date)}</span>
+            {row.planned_time && (
+              <span className="block text-xs text-gray-500">{row.planned_time}</span>
+            )}
           </div>
           <div>
             <span className="block text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-1">Delay Days</span>

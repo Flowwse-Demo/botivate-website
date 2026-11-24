@@ -365,13 +365,16 @@ export default function TaskList({
         const pendingWithOwner = pendingData.filter(
             (t) => !!t.assignedMember1Id || !!t.assignedMember1
         );
-        setUniqueAssignedMembers([
-            ...new Set(
-                pendingWithOwner
-                    .map((item) => (item.assignedMember1 || "").toString().trim())
-                    .filter(Boolean)
-            ),
-        ].sort((a, b) => a.localeCompare(b)));
+        const memberCountMap = {};
+        pendingWithOwner.forEach((item) => {
+            const name = (item.assignedMember1 || "").toString().trim();
+            if (name) memberCountMap[name] = (memberCountMap[name] || 0) + 1;
+        });
+        setUniqueAssignedMembers(
+            Object.entries(memberCountMap)
+                .map(([name, count]) => ({ name, count }))
+                .sort((a, b) => a.name.localeCompare(b.name))
+        );
     }, [pendingData, historyData, type]);
 
     // Pagination values for the current view
@@ -700,8 +703,8 @@ export default function TaskList({
                     >
                         <option value="all">All Assigned Members</option>
                         {uniqueAssignedMembers.map((member) => (
-                            <option key={member} value={member}>
-                                {member}
+                            <option key={member.name} value={member.name}>
+                                {member.name} ({member.count})
                             </option>
                         ))}
                     </Select>

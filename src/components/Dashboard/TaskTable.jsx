@@ -9,8 +9,9 @@ import {
   Users,
   Save,
   Search,
+  AlertTriangle,
 } from "lucide-react";
-import { formatDate } from "../../utils/dateFormatters";
+import { formatDate, formatDateTime, addDays, calcDelay } from "../../utils/dateFormatters";
 import Button from "./shared/Button";
 import DataTable from "./shared/DataTable";
 import { LoadingIndicator, ErrorMessage } from "./shared/StatusIndicators";
@@ -357,18 +358,20 @@ export default function EmployeeTasksTable({
     { label: "Link", width: 80 },
     { label: "Attachment", width: 100 },
     { label: "Expected Date", width: 120 },
+    { label: "Planned Date", width: 150 },
+    { label: "Delay", width: 120 },
     { label: "Priority", width: 100 },
     { label: "Status", width: 110 },
   ];
 
   // table-fixed + min-width equal to the sum of column widths (literal classes for Tailwind JIT)
   const minWidth = showAssignCols
-    ? "table-fixed min-w-[2871px]"
+    ? "table-fixed min-w-[3141px]"
     : showActionCol
-    ? "table-fixed min-w-[2975px]"
+    ? "table-fixed min-w-[3245px]"
     : showHistoryCols
-    ? "table-fixed min-w-[2755px]"
-    : "table-fixed min-w-[2035px]";
+    ? "table-fixed min-w-[3025px]"
+    : "table-fixed min-w-[2305px]";
 
   const getDraft = (task) =>
     drafts[task.id] || {
@@ -436,8 +439,7 @@ export default function EmployeeTasksTable({
                   <option value="">Member 1</option>
                   {members.map((m) => (
                     <option key={m.id} value={m.id}>
-                      {m.name || m.username}
-                      {m.isFree ? " — Available" : " — Busy"}
+                      {m.name || m.username} {m.isFree ? " — Available" : " — Busy"}
                     </option>
                   ))}
                 </Select>
@@ -469,8 +471,7 @@ export default function EmployeeTasksTable({
                   <option value="">None</option>
                   {members.map((m) => (
                     <option key={m.id} value={m.id}>
-                      {m.name || m.username}
-                      {m.isFree ? " — Available" : " — Busy"}
+                      {m.name || m.username} {m.isFree ? " — Available" : " — Busy"}
                     </option>
                   ))}
                 </Select>
@@ -539,7 +540,7 @@ export default function EmployeeTasksTable({
             </td>
             <td className={`${tdBase} text-sm text-gray-700 whitespace-nowrap text-center align-middle`}>
               {task.time_required
-                ? formatDate(task.time_required)
+                ? formatDateTime(task.time_required)
                 : "—"}
             </td>
             <td className={`${tdBase} text-sm text-gray-700 text-center align-middle`}>
@@ -678,6 +679,25 @@ export default function EmployeeTasksTable({
 
         <td className={`${tdBase} text-sm text-gray-700 whitespace-nowrap text-center align-middle`}>
           {formatDate(task.expected_date_to_close)}
+        </td>
+        <td className={`${tdBase} text-sm text-gray-700 whitespace-nowrap text-center align-middle`}>
+          {(() => {
+            const planned = addDays(task.created_at, 1);
+            return planned ? formatDateTime(planned) : "—";
+          })()}
+        </td>
+        <td className={`${tdBase} text-sm whitespace-nowrap text-center align-middle`}>
+          {(() => {
+            const planned = addDays(task.created_at, 1);
+            const actual = task.assigned_at || null;
+            const delay = calcDelay(planned, actual);
+            if (!delay) return "—";
+            return (
+              <span className={`inline-flex px-2 py-0.5 text-xs font-medium rounded-full ${delay.overdue ? "bg-red-100 text-red-800" : "bg-green-100 text-green-800"}`}>
+                {delay.text}
+              </span>
+            );
+          })()}
         </td>
         <td className={tdBase}>
           <span
@@ -836,8 +856,7 @@ export default function EmployeeTasksTable({
                     <option value="">Select Member</option>
                     {members.map((m) => (
                       <option key={m.id} value={m.id}>
-                        {m.name || m.username}
-                        {m.isFree ? " — Available" : " — Busy"}
+                        {m.name || m.username} {m.isFree ? " — Available" : " — Busy"}
                       </option>
                     ))}
                   </Select>
@@ -854,8 +873,7 @@ export default function EmployeeTasksTable({
                     <option value="">Select Backup (Optional)</option>
                     {members.map((m) => (
                       <option key={m.id} value={m.id}>
-                        {m.name || m.username}
-                        {m.isFree ? " — Available" : " — Busy"}
+                        {m.name || m.username} {m.isFree ? " — Available" : " — Busy"}
                       </option>
                     ))}
                   </Select>
@@ -906,6 +924,32 @@ export default function EmployeeTasksTable({
             </div>
           </div>
         )}
+
+        <div className="mt-2 grid grid-cols-2 gap-4 bg-amber-50/50 p-3 rounded-lg border border-amber-100">
+          <div>
+            <span className="block text-xs font-medium text-gray-400 mb-0.5">Planned Date</span>
+            <span className="text-gray-700">
+              {(() => {
+                const planned = addDays(task.created_at, 1);
+                return planned ? formatDateTime(planned) : "—";
+              })()}
+            </span>
+          </div>
+          <div>
+            <span className="block text-xs font-medium text-gray-400 mb-0.5">Delay</span>
+            {(() => {
+              const planned = addDays(task.created_at, 1);
+              const actual = task.assigned_at || null;
+              const delay = calcDelay(planned, actual);
+              if (!delay) return <span className="text-gray-700">—</span>;
+              return (
+                <span className={`inline-flex px-2 py-0.5 text-xs font-medium rounded-full ${delay.overdue ? "bg-red-100 text-red-800" : "bg-green-100 text-green-800"}`}>
+                  {delay.text}
+                </span>
+              );
+            })()}
+          </div>
+        </div>
 
         <div className="mt-2 flex items-center justify-between border-t border-gray-100 pt-3">
           <div className="flex flex-col">

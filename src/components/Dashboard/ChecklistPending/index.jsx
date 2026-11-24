@@ -132,7 +132,7 @@ function ChecklistUpdateModal({ task, onClose, onDone }) {
     setError("");
     try {
       const proof_url = await fileToDataUrl(proofFile);
-      await updateChecklistTask(task.id, {
+      await updateChecklistTask(task.id || task.checklist_task_id, {
         status,
         remarks,
         ...(proof_url ? { proof_url } : {}),
@@ -621,6 +621,23 @@ function getChecklistDelay(task) {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
+  if (task.occurrence_date) {
+    try {
+      const scheduled = new Date(task.occurrence_date + "T00:00:00");
+      scheduled.setHours(0, 0, 0, 0);
+      if (isDone) {
+        const doneDate = task.actual_date || task.updated_at ? new Date(task.actual_date || task.updated_at) : today;
+        doneDate.setHours(0, 0, 0, 0);
+        const diff = Math.round((doneDate - scheduled) / (1000 * 60 * 60 * 24));
+        return diff > 0 ? diff : 0;
+      }
+      const diff = Math.round((today - scheduled) / (1000 * 60 * 60 * 24));
+      return diff > 0 ? diff : 0;
+    } catch {
+      /* ignore */
+    }
+  }
+
   if (task.task_date) {
     try {
       const scheduled = new Date(task.task_date);
@@ -729,7 +746,6 @@ const CHECKLIST_PENDING_HEADERS = [
   "Type",
   "Time",
   "Date",
-  "Status",
   "Delay",
 ];
 
@@ -741,7 +757,6 @@ const CHECKLIST_COMPLETED_HEADERS = [
   "Type",
   "Time",
   "Date",
-  "Status",
   "Actual",
   "Delay",
 ];
@@ -772,12 +787,26 @@ function useChecklistPanel({ userRole, user, userFilterData }) {
     load();
   }, [load]);
 
+  const currentAndNextDateRows = useMemo(() => {
+    const now = new Date();
+    const pad = (n) => String(n).padStart(2, "0");
+    const todayStr = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+    const tomorrow = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+    const tomorrowStr = `${tomorrow.getFullYear()}-${pad(tomorrow.getMonth() + 1)}-${pad(tomorrow.getDate())}`;
+
+    return rows.filter((r) => {
+      if (!r.occurrence_date) return true;
+      const d = String(r.occurrence_date).slice(0, 10);
+      return d === todayStr || d === tomorrowStr;
+    });
+  }, [rows]);
+
   const pending = useMemo(
     () =>
-      rows.filter(
+      currentAndNextDateRows.filter(
         (r) => String(r.status || "").toLowerCase() !== "completed"
       ),
-    [rows]
+    [currentAndNextDateRows]
   );
   useEffect(() => {
     publishCount("checklist-pending:checklist", pending.length);
@@ -785,10 +814,10 @@ function useChecklistPanel({ userRole, user, userFilterData }) {
 
   const completed = useMemo(
     () =>
-      rows.filter(
+      currentAndNextDateRows.filter(
         (r) => String(r.status || "").toLowerCase() === "completed"
       ),
-    [rows]
+    [currentAndNextDateRows]
   );
 
   const filtered = useMemo(() => {
@@ -799,6 +828,7 @@ function useChecklistPanel({ userRole, user, userFilterData }) {
       (r) =>
         String(r.task_name || "").toLowerCase().includes(q) ||
         String(r.name || "").toLowerCase().includes(q) ||
+        String(r.doer_name || "").toLowerCase().includes(q) ||
         String(r.task_type || "").toLowerCase().includes(q) ||
         String(r.status || "").toLowerCase().includes(q)
     );
@@ -820,7 +850,7 @@ function useChecklistPanel({ userRole, user, userFilterData }) {
     const delay = getChecklistDelay(r);
     return (
       <tr
-        key={r.id}
+        key={`${r.id || r.checklist_task_id || "cl"}_${r.occurrence_date || ""}`}
         className="hover:bg-slate-50/60 transition"
       >
         <td className="px-4 py-3 text-center align-middle">
@@ -864,15 +894,6 @@ function useChecklistPanel({ userRole, user, userFilterData }) {
             <span className="text-xs text-slate-400">—</span>
           )}
         </td>
-        <td className="px-4 py-3 text-center align-middle">
-          <span
-            className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ring-1 ring-inset ${statusStyle(
-              r.status
-            )}`}
-          >
-            {r.status || "Pending"}
-          </span>
-        </td>
         {statusTab === "completed" && (
           <td className="whitespace-nowrap px-4 py-3 text-center text-slate-500 align-middle">
             {formatDate(r.actual_date || r.updated_at || r.created_at)}
@@ -902,7 +923,7 @@ function useChecklistPanel({ userRole, user, userFilterData }) {
     const cleanDesc = cleanDescription(r.description);
     const delay = getChecklistDelay(r);
     return (
-      <div key={r.id} className="p-4 sm:p-5 flex flex-col gap-4 transition-all duration-300 rounded-2xl shadow-sm border border-gray-100 relative overflow-hidden bg-white hover:shadow-md">
+      <div key={`${r.id || r.checklist_task_id || "cl"}_${r.occurrence_date || ""}`} className="p-4 sm:p-5 flex flex-col gap-4 transition-all duration-300 rounded-2xl shadow-sm border border-gray-100 relative overflow-hidden bg-white hover:shadow-md">
         <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-blue-500 to-purple-500 opacity-80"></div>
 
         <div className="flex justify-between items-start mt-1">
@@ -912,18 +933,13 @@ function useChecklistPanel({ userRole, user, userFilterData }) {
             </span>
             <p className="text-xs font-medium text-gray-500 mt-0.5">{r.task_type || "—"} · {r.task_category || "—"}</p>
           </div>
-          <div className="flex flex-col items-end gap-2">
-            <span className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-medium ring-1 ring-inset ${statusStyle(r.status)}`}>
-              {r.status || "Pending"}
-            </span>
-            <button
+          <button
               type="button"
               onClick={() => setUpdateItem(r)}
               className="inline-flex items-center justify-center rounded-lg bg-emerald-600 px-3.5 py-1.5 text-xs font-semibold text-white shadow-sm transition hover:bg-emerald-700 active:scale-95"
             >
               Update
             </button>
-          </div>
         </div>
 
         <div className="grid grid-cols-2 gap-x-4 gap-y-4 text-sm bg-gray-50/50 p-4 rounded-xl border border-gray-100/50">
@@ -1045,7 +1061,6 @@ const WEEKLY_PENDING_HEADERS = [
   "Caller",
   "Date",
   "Time",
-  "Status",
   "Delay",
 ];
 
@@ -1057,10 +1072,30 @@ const WEEKLY_COMPLETED_HEADERS = [
   "Caller",
   "Date",
   "Time",
-  "Status",
   "Actual",
   "Delay",
 ];
+
+function getCurrentWeekRange() {
+  const now = new Date();
+  now.setHours(0, 0, 0, 0);
+  const dayOfWeek = now.getDay();
+  const diffToMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+  const monday = new Date(now);
+  monday.setDate(now.getDate() - diffToMonday);
+  const sunday = new Date(monday);
+  sunday.setDate(monday.getDate() + 6);
+  return { monday, sunday };
+}
+
+function isInCurrentWeek(dateStr) {
+  if (!dateStr) return true;
+  const d = new Date(dateStr + "T00:00:00");
+  if (isNaN(d)) return true;
+  d.setHours(0, 0, 0, 0);
+  const { monday, sunday } = getCurrentWeekRange();
+  return d >= monday && d <= sunday;
+}
 
 function useWeeklyPanel({onEscalate}) {
   const [rows, setRows] = useState([]);
@@ -1088,12 +1123,17 @@ function useWeeklyPanel({onEscalate}) {
     load();
   }, [load]);
 
+  const currentWeekRows = useMemo(
+    () => rows.filter((r) => isInCurrentWeek(r.occurrence_date)),
+    [rows]
+  );
+
   const pending = useMemo(
     () =>
-      rows.filter(
+      currentWeekRows.filter(
         (r) => String(r.status || "").toLowerCase() !== "completed"
       ),
-    [rows]
+    [currentWeekRows]
   );
   useEffect(() => {
     publishCount("checklist-pending:weekly", pending.length);
@@ -1101,10 +1141,10 @@ function useWeeklyPanel({onEscalate}) {
 
   const completed = useMemo(
     () =>
-      rows.filter(
+      currentWeekRows.filter(
         (r) => String(r.status || "").toLowerCase() === "completed"
       ),
-    [rows]
+    [currentWeekRows]
   );
 
   const filtered = useMemo(() => {
@@ -1183,15 +1223,6 @@ function useWeeklyPanel({onEscalate}) {
             );
           })()}
         </td>
-        <td className="px-4 py-3 text-center align-middle">
-          <span
-            className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ring-1 ring-inset ${statusStyle(
-              r.status
-            )}`}
-          >
-            {r.status || "Pending"}
-          </span>
-        </td>
         {statusTab === "completed" && (
           <td className="whitespace-nowrap px-4 py-3 text-center text-slate-500 align-middle">
             {formatDate(r.actual_date || r.updated_at || r.created_at)}
@@ -1229,18 +1260,13 @@ function useWeeklyPanel({onEscalate}) {
             </span>
             <p className="text-xs font-medium text-gray-500 mt-0.5">{r.calling_person_name || "—"}</p>
           </div>
-          <div className="flex flex-col items-end gap-2">
-            <span className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-medium ring-1 ring-inset ${statusStyle(r.status)}`}>
-              {r.status || "Pending"}
-            </span>
-            <button
+          <button
               type="button"
               onClick={() => setUpdateItem(r)}
               className="inline-flex items-center justify-center rounded-lg bg-violet-600 px-3.5 py-1.5 text-xs font-semibold text-white shadow-sm transition hover:bg-violet-700 active:scale-95"
             >
               Update
             </button>
-          </div>
         </div>
 
         <div className="grid grid-cols-2 gap-x-4 gap-y-4 text-sm bg-gray-50/50 p-4 rounded-xl border border-gray-100/50">

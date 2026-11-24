@@ -29,7 +29,6 @@ const PENDING_HEADERS = [
   "Task Details",
   "Target",
   "Planned",
-  "Status",
   "Remarks",
   "New Target",
   "Delay",
@@ -45,7 +44,6 @@ const COMPLETED_HEADERS = [
   "Target",
   "Planned",
   "Actual",
-  "Status",
   "Remarks",
   "New Target",
   "Delay",
@@ -581,11 +579,8 @@ export function useDelegationTasks({
             task.assignee?.username ||
             "—"}
         </td>
-        <td className="max-w-[200px] px-3 py-3 text-center align-middle">
-          <p
-            className="truncate text-sm font-medium text-slate-800"
-            title={cleanTaskDetails(task.task_details)}
-          >
+        <td className="px-3 py-3 text-center align-middle">
+          <p className="whitespace-pre-line text-sm font-medium text-slate-800">
             {cleanTaskDetails(task.task_details)}
           </p>
         </td>
@@ -610,15 +605,6 @@ export function useDelegationTasks({
               : "—"}
           </td>
         )}
-        <td className="px-3 py-3 text-center align-middle">
-          <span
-            className={`inline-flex rounded-lg px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide ring-1 ${statusStyle(
-              task.status
-            )}`}
-          >
-            {task.status || "Pending"}
-          </span>
-        </td>
         <td className="max-w-[140px] px-3 py-3 text-xs text-slate-500 text-center align-middle">
           <span
             className="line-clamp-2"
@@ -672,18 +658,13 @@ export function useDelegationTasks({
             </span>
             <p className="text-xs font-medium text-gray-500 mt-0.5">Assigned to: {task.assignee?.name || task.assignee?.username || "—"}</p>
           </div>
-          <div className="flex flex-col items-end gap-2">
-            <span className={`inline-flex rounded-lg px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide ring-1 ${statusStyle(task.status)}`}>
-              {task.status || "Pending"}
-            </span>
-            <button
+          <button
               type="button"
               onClick={() => setSelectedTask(task)}
               className="inline-flex items-center justify-center rounded-lg bg-indigo-600 px-3.5 py-1.5 text-xs font-semibold text-white shadow-sm transition hover:bg-indigo-700 active:scale-95"
             >
               Update
             </button>
-          </div>
         </div>
 
         <div className="grid grid-cols-2 gap-x-4 gap-y-4 text-sm bg-gray-50/50 p-4 rounded-xl border border-gray-100/50">

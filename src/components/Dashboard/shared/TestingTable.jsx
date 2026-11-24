@@ -39,7 +39,7 @@ export const deliveryColumns = {
   },
   system: { label: "System Name", render: (r) => dash(r.system?.name) },
   product: { label: "Type Of Product", render: (r) => dash(r.type_of_product) },
-  delivered: { label: "Date of Delivery", render: (r) => dash(formatDate(r.date_of_delivery)) },
+  delivered: { label: "Date of Delivery", render: (r) => dash(formatDateTime(r.task?.time_required || r.date_of_delivery)) },
   link: {
     label: "System Link",
     render: (r) =>

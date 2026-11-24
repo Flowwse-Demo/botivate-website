@@ -1,6 +1,6 @@
 import React from "react";
 import { FileText, Send, AlertTriangle } from "lucide-react";
-import { formatDateToDDMMYY } from "../../../utils/dateFormatters";
+import { formatDateToDDMMYY, calcDelay } from "../../../utils/dateFormatters";
 import ExpandableText from "../shared/ExpandableText";
 import { getStatusBadgeClass, getStatusText } from "./SubComponents";
 import { TaskAccessCell } from "./TaskAccessCell";
@@ -194,6 +194,36 @@ export function TaskCard({
                                         ? "Forwarding…"
                                         : `Forward to ${task.assignedMember2 || "Member 2"}`}
                                 </button>
+                            </div>
+                        )}
+
+                        {/* Planned Date & Delay */}
+                        {(task.timeRequired || task.expectedDateRaw) && (
+                            <div className="grid grid-cols-2 gap-3 mb-4 text-sm bg-amber-50/50 p-3 rounded-lg border border-amber-100">
+                                <div>
+                                    <div className="text-xs tracking-wider text-gray-500 uppercase">
+                                        Planned Date
+                                    </div>
+                                    <div className="text-gray-900">
+                                        {task.timeRequired || "-"}
+                                    </div>
+                                </div>
+                                <div>
+                                    <div className="text-xs tracking-wider text-gray-500 uppercase">
+                                        Delay
+                                    </div>
+                                    {(() => {
+                                        const plannedRaw = task.expectedDateRaw || task.timeRequired;
+                                        const actual = task.actual2 || null;
+                                        const delay = calcDelay(plannedRaw, actual);
+                                        if (!delay) return <div className="text-gray-900">-</div>;
+                                        return (
+                                            <span className={`inline-flex px-2 py-0.5 text-xs font-medium rounded-full ${delay.overdue ? "bg-red-100 text-red-800" : "bg-green-100 text-green-800"}`}>
+                                                {delay.text}
+                                            </span>
+                                        );
+                                    })()}
+                                </div>
                             </div>
                         )}
 

@@ -152,3 +152,79 @@ export const safeToISO = (val, fallback = null) => {
   return fallback;
 };
 
+export const addDays = (dateVal, days) => {
+  if (!dateVal) return null;
+  const d = new Date(dateVal);
+  if (isNaN(d.getTime())) return null;
+  return clampToOfficeHours(new Date(d.getTime() + days * 24 * 60 * 60 * 1000));
+};
+
+export const addHours = (dateVal, hours) => {
+  if (!dateVal) return null;
+  const d = new Date(dateVal);
+  if (isNaN(d.getTime())) return null;
+  d.setTime(d.getTime() + hours * 60 * 60 * 1000);
+  return d;
+};
+
+const OFFICE_START = 10;
+const OFFICE_END = 18;
+
+const clampToOfficeHours = (d) => {
+  if (!d || isNaN(d.getTime())) return d;
+  const h = d.getHours();
+  if (h < OFFICE_START) {
+    d.setHours(OFFICE_START, 0, 0, 0);
+  } else if (h >= OFFICE_END) {
+    d.setDate(d.getDate() + 1);
+    d.setHours(OFFICE_START, 0, 0, 0);
+  }
+  return d;
+};
+
+export const addWorkingHours = (dateVal, hours) => {
+  if (!dateVal) return null;
+  let d = new Date(dateVal);
+  if (isNaN(d.getTime())) return null;
+  if (d.getHours() < OFFICE_START) {
+    d.setHours(OFFICE_START, 0, 0, 0);
+  } else if (d.getHours() >= OFFICE_END) {
+    d.setDate(d.getDate() + 1);
+    d.setHours(OFFICE_START, 0, 0, 0);
+  }
+  let remaining = hours * 60;
+  while (remaining > 0) {
+    const currentMins = d.getHours() * 60 + d.getMinutes();
+    const endMins = OFFICE_END * 60;
+    const availableToday = endMins - currentMins;
+    if (remaining <= availableToday) {
+      d = new Date(d.getTime() + remaining * 60 * 1000);
+      remaining = 0;
+    } else {
+      remaining -= availableToday;
+      d.setDate(d.getDate() + 1);
+      d.setHours(OFFICE_START, 0, 0, 0);
+    }
+  }
+  return d;
+};
+
+export const calcDelay = (plannedDate, actualDate) => {
+  if (!plannedDate) return null;
+  const planned = new Date(plannedDate);
+  if (isNaN(planned.getTime())) return null;
+  const compare = actualDate ? new Date(actualDate) : new Date();
+  if (isNaN(compare.getTime())) return null;
+  const diffMs = compare.getTime() - planned.getTime();
+  if (diffMs <= 0) return { text: "On Time", overdue: false };
+  const totalMins = Math.floor(diffMs / 60000);
+  const days = Math.floor(totalMins / 1440);
+  const hours = Math.floor((totalMins % 1440) / 60);
+  const mins = totalMins % 60;
+  let text = "";
+  if (days > 0) text += `${days}d `;
+  if (hours > 0 || days > 0) text += `${hours}h `;
+  text += `${mins}m`;
+  return { text: text.trim(), overdue: true };
+};
+

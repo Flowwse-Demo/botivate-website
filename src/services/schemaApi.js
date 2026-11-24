@@ -1244,9 +1244,71 @@ export const createChecklistTask = async (payload) => {
 };
 
 export const fetchChecklistTasks = async () => {
-  const { data, error } = await supabase.rpc("get_checklist_scheduled");
-  if (error) throw error;
-  return data || [];
+  let list = [];
+  try {
+    const { data, error } = await supabase.rpc("get_checklist_scheduled");
+    if (error) throw error;
+    list = data || [];
+  } catch (rpcErr) {
+    console.warn("get_checklist_scheduled RPC fallback:", rpcErr?.message);
+    const { data: tblData, error: tblErr } = await supabase
+      .from("checklist_tasks")
+      .select("*")
+      .order("created_at", { ascending: false });
+    if (tblErr) throw tblErr;
+    list = tblData || [];
+  }
+
+  // Filter to strictly CURRENT DATE (today) and NEXT DATE (tomorrow) — previous dates are excluded
+  const now = new Date();
+  const pad = (n) => String(n).padStart(2, "0");
+  const todayStr = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+  const tomorrow = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+  const tomorrowStr = `${tomorrow.getFullYear()}-${pad(tomorrow.getMonth() + 1)}-${pad(tomorrow.getDate())}`;
+
+  const DAY_NAMES = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"];
+  const todayDayName = DAY_NAMES[now.getDay()];
+  const tomorrowDayName = DAY_NAMES[tomorrow.getDay()];
+
+  const result = [];
+  list.forEach((r) => {
+    const id = r.id || r.checklist_task_id;
+    if (r.occurrence_date) {
+      const d = String(r.occurrence_date).slice(0, 10);
+      if (d === todayStr || d === tomorrowStr) {
+        result.push({
+          ...r,
+          id,
+          checklist_task_id: r.checklist_task_id || id,
+          is_today: d === todayStr,
+        });
+      }
+      return;
+    }
+
+    // Direct table fallback if no occurrence_date
+    const days = Array.isArray(r.days) ? r.days.map((x) => String(x).trim().toLowerCase()) : [];
+    if (days.includes(todayDayName)) {
+      result.push({
+        ...r,
+        id,
+        checklist_task_id: r.checklist_task_id || id,
+        occurrence_date: todayStr,
+        is_today: true,
+      });
+    }
+    if (days.includes(tomorrowDayName)) {
+      result.push({
+        ...r,
+        id,
+        checklist_task_id: r.checklist_task_id || id,
+        occurrence_date: tomorrowStr,
+        is_today: false,
+      });
+    }
+  });
+
+  return result;
 };
 
 export const updateChecklistTask = async (id, { status, remarks }) => {
@@ -1317,9 +1379,50 @@ export const createWeeklyCall = async (payload) => {
 };
 
 export const fetchWeeklyCalls = async () => {
-  const { data, error } = await supabase.rpc("get_weekly_calls_scheduled");
-  if (error) throw error;
-  return data || [];
+  // Try the RPC first; if it doesn't exist or fails, fallback to direct query
+  const rpcRes = await supabase.rpc("get_weekly_calls_scheduled");
+  if (!rpcRes.error && Array.isArray(rpcRes.data) && rpcRes.data.length > 0) {
+    return rpcRes.data;
+  }
+
+  // Fallback: query table directly and expand calling_days into per-day rows for the current week
+  const { data: rows, error: tblErr } = await supabase
+    .from("weekly_calls")
+    .select("*")
+    .order("created_at", { ascending: false });
+  if (tblErr) throw tblErr;
+  if (!rows || rows.length === 0) return [];
+
+  const DAY_MAP = { sunday: 0, monday: 1, tuesday: 2, wednesday: 3, thursday: 4, friday: 5, saturday: 6 };
+  const now = new Date();
+  now.setHours(0, 0, 0, 0);
+  const dow = now.getDay();
+  const diffMon = dow === 0 ? 6 : dow - 1;
+  const monday = new Date(now);
+  monday.setDate(now.getDate() - diffMon);
+
+  const expanded = [];
+  rows.forEach((row) => {
+    const days = Array.isArray(row.calling_days) ? row.calling_days : [];
+    if (days.length === 0) {
+      expanded.push({ ...row, occurrence_date: null, is_today: false });
+      return;
+    }
+    days.forEach((dayName) => {
+      const targetIdx = DAY_MAP[String(dayName).toLowerCase()];
+      if (targetIdx == null) return;
+      let diff = targetIdx - 1; // offset from Monday (Monday=0 in our week)
+      if (diff < 0) diff += 7;
+      const occDate = new Date(monday);
+      occDate.setDate(monday.getDate() + diff);
+      const pad = (n) => String(n).padStart(2, "0");
+      const dateStr = `${occDate.getFullYear()}-${pad(occDate.getMonth() + 1)}-${pad(occDate.getDate())}`;
+      const isToday = occDate.getTime() === now.getTime();
+      expanded.push({ ...row, occurrence_date: dateStr, is_today: isToday });
+    });
+  });
+
+  return expanded;
 };
 
 export const updateWeeklyCall = async (id, { has_issue, customer_said, proof_url, status }) => {
@@ -1779,15 +1882,21 @@ export const createMISTasksBatch = async ({
       if (ord?.mis_id || ord?.staff_id) assignedUser = Number(ord.mis_id || ord.staff_id);
     }
 
-    const rows = validTasks.map((t) => ({
-      order_id: Number(order_id),
-      assigned_user_id: assignedUser || null,
-      task_name: t.task_name.trim(),
-      description: t.description?.trim() || null,
-      day_name: t.day_name || "Monday",
-      status: "Pending",
-      created_by: created_by ? Number(created_by) : null,
-    }));
+    const rows = [];
+    for (const t of validTasks) {
+      const days = Array.isArray(t.days) && t.days.length > 0 ? t.days : [t.day_name || "Monday"];
+      for (const day of days) {
+        rows.push({
+          order_id: Number(order_id),
+          assigned_user_id: assignedUser || null,
+          task_name: t.task_name.trim(),
+          description: t.description?.trim() || null,
+          day_name: day,
+          status: "Pending",
+          created_by: created_by ? Number(created_by) : null,
+        });
+      }
+    }
 
     const { data, error } = await supabase.from("mis_tasks").insert(rows).select();
     if (error) throw error;
@@ -1805,29 +1914,37 @@ export const createMISTasksBatch = async ({
   let rowsToInsert = [];
   if (activeOrders.length > 0) {
     for (const t of validTasks) {
-      for (const ord of activeOrders) {
+      const days = Array.isArray(t.days) && t.days.length > 0 ? t.days : [t.day_name || "Monday"];
+      for (const day of days) {
+        for (const ord of activeOrders) {
+          rowsToInsert.push({
+            order_id: ord.id,
+            assigned_user_id: Number(ord.mis_id || ord.staff_id),
+            task_name: t.task_name.trim(),
+            description: t.description?.trim() || null,
+            day_name: day,
+            status: "Pending",
+            created_by: created_by ? Number(created_by) : null,
+          });
+        }
+      }
+    }
+  } else {
+    // If no orders have MIS yet, create template tasks
+    for (const t of validTasks) {
+      const days = Array.isArray(t.days) && t.days.length > 0 ? t.days : [t.day_name || "Monday"];
+      for (const day of days) {
         rowsToInsert.push({
-          order_id: ord.id,
-          assigned_user_id: Number(ord.mis_id || ord.staff_id),
+          order_id: null,
+          assigned_user_id: assigned_user_id ? Number(assigned_user_id) : null,
           task_name: t.task_name.trim(),
           description: t.description?.trim() || null,
-          day_name: t.day_name || "Monday",
+          day_name: day,
           status: "Pending",
           created_by: created_by ? Number(created_by) : null,
         });
       }
     }
-  } else {
-    // If no orders have MIS yet, create template tasks
-    rowsToInsert = validTasks.map((t) => ({
-      order_id: null,
-      assigned_user_id: assigned_user_id ? Number(assigned_user_id) : null,
-      task_name: t.task_name.trim(),
-      description: t.description?.trim() || null,
-      day_name: t.day_name || "Monday",
-      status: "Pending",
-      created_by: created_by ? Number(created_by) : null,
-    }));
   }
 
   const { data, error } = await supabase.from("mis_tasks").insert(rowsToInsert).select();
@@ -1951,7 +2068,7 @@ export const fetchCompanyList = async () => {
 
 const TASK_TESTING_SELECT = `
   *,
-  task:user_tasks!task_testing_task_id_fkey ( id, task_no, status ),
+  task:user_tasks!task_testing_task_id_fkey ( id, task_no, status, time_required ),
   subtask:task_subtasks!task_testing_subtask_id_fkey (
     id, task_no, status, relation_type, issue_remarks,
     source_testing:task_testing!task_subtasks_source_testing_id_fkey (
@@ -2510,9 +2627,25 @@ export const fetchPendingCounts = async ({ userId = null, seesAll = false, withR
   const checklistCounts = async () => {
     try {
       const [cl, wk] = await Promise.all([fetchChecklistTasks(), fetchWeeklyCalls()]);
+      const now = new Date();
+      now.setHours(0, 0, 0, 0);
+      const dow = now.getDay();
+      const diffMon = dow === 0 ? 6 : dow - 1;
+      const wkStart = new Date(now);
+      wkStart.setDate(now.getDate() - diffMon);
+      const wkEnd = new Date(wkStart);
+      wkEnd.setDate(wkStart.getDate() + 6);
+      const currentWeekCalls = wk.filter((t) => {
+        if (String(t.status || "").toLowerCase() === "completed") return false;
+        if (!t.occurrence_date) return true;
+        const d = new Date(t.occurrence_date + "T00:00:00");
+        if (isNaN(d)) return true;
+        d.setHours(0, 0, 0, 0);
+        return d >= wkStart && d <= wkEnd;
+      });
       counts["checklist-pending"] =
         cl.filter((t) => String(t.status || "").toLowerCase() !== "completed").length +
-        wk.filter((t) => String(t.status || "").toLowerCase() !== "completed").length;
+        currentWeekCalls.length;
     } catch {
       counts["checklist-pending"] = 0;
     }

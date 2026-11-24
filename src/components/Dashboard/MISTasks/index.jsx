@@ -13,6 +13,7 @@ import {
   AlertCircle,
   X,
   Edit2,
+  Calendar,
 } from "lucide-react";
 import {
   fetchMISTasks,
@@ -44,7 +45,7 @@ const emptyRow = () => ({
   id: Date.now() + Math.random(),
   task_name: "",
   description: "",
-  day_name: "Monday",
+  days: ["Monday"],
 });
 
 function getDayColor(day) {
@@ -77,6 +78,58 @@ function getStatusBadge(status) {
     return "bg-blue-50 text-blue-700 ring-blue-200";
   }
   return "bg-amber-50 text-amber-700 ring-amber-200";
+}
+
+function DayPillSelector({ value = [], onChange }) {
+  const toggleDay = (day) => {
+    if (value.includes(day)) {
+      onChange(value.filter((d) => d !== day));
+    } else {
+      onChange([...value, day]);
+    }
+  };
+
+  const selectAll = () => onChange([...DAY_OPTIONS]);
+  const selectNone = () => onChange([]);
+
+  return (
+    <div className="flex flex-wrap items-center gap-1.5">
+      {DAY_OPTIONS.map((day) => {
+        const selected = value.includes(day);
+        return (
+          <button
+            key={day}
+            type="button"
+            onClick={() => toggleDay(day)}
+            className={`rounded-lg px-2.5 py-1 text-xs font-semibold transition ${
+              selected
+                ? "bg-indigo-600 text-white shadow-sm ring-1 ring-indigo-600"
+                : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+            }`}
+          >
+            {day.slice(0, 3)}
+          </button>
+        );
+      })}
+      <div className="flex items-center gap-1 ml-1 pl-1.5 border-l border-slate-200">
+        <button
+          type="button"
+          onClick={selectAll}
+          className="text-[11px] font-medium text-indigo-600 hover:underline px-1 py-0.5"
+        >
+          All
+        </button>
+        <span className="text-slate-300 text-xs">/</span>
+        <button
+          type="button"
+          onClick={selectNone}
+          className="text-[11px] font-medium text-slate-400 hover:text-slate-600 px-1 py-0.5"
+        >
+          None
+        </button>
+      </div>
+    </div>
+  );
 }
 
 export default function MISTasksPage({ user, userRole, userFilterData, setActiveTab }) {
@@ -221,6 +274,12 @@ export default function MISTasksPage({ user, userRole, userFilterData, setActive
     if (!validRows.length) {
       setFormError("Please enter at least one task name.");
       return;
+    }
+    for (const r of validRows) {
+      if (!r.days || r.days.length === 0) {
+        setFormError("Please select at least one day for each task.");
+        return;
+      }
     }
 
     setSaving(true);
@@ -481,9 +540,9 @@ export default function MISTasksPage({ user, userRole, userFilterData, setActive
                 </div>
               )}
 
-              {/* Rows Table */}
-              <div>
-                <div className="flex items-center justify-between mb-2">
+              {/* Rows List / Cards */}
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
                   <span className={labelCls}>Task Entries</span>
                   <button
                     type="button"
@@ -495,67 +554,74 @@ export default function MISTasksPage({ user, userRole, userFilterData, setActive
                   </button>
                 </div>
 
-                <div className="overflow-x-auto rounded-2xl border border-slate-200">
-                  <table className="w-full min-w-[600px] text-sm">
-                    <thead className="bg-slate-50 text-[11px] font-semibold uppercase tracking-wider text-slate-500">
-                      <tr>
-                        <th className="w-10 px-3 py-2.5 text-center">#</th>
-                        <th className="px-3 py-2.5 text-left">Task Name *</th>
-                        <th className="px-3 py-2.5 text-left">Description</th>
-                        <th className="w-44 px-3 py-2.5 text-left">Day of Week</th>
-                        <th className="w-10 px-2 py-2.5" />
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100">
-                      {formRows.map((row, idx) => (
-                        <tr key={row.id}>
-                          <td className="px-3 py-2 text-center font-mono text-xs font-semibold text-indigo-500">
+                <div className="space-y-3">
+                  {formRows.map((row, idx) => (
+                    <div
+                      key={row.id}
+                      className="rounded-2xl border border-slate-200 bg-slate-50/50 p-4 transition hover:border-indigo-200 hover:bg-slate-50/80 space-y-3.5"
+                    >
+                      {/* Top Row: Task Name, Description, and Delete */}
+                      <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+                        <div className="flex items-center gap-2 sm:w-8 shrink-0">
+                          <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-indigo-100 text-xs font-bold font-mono text-indigo-700">
                             {idx + 1}
-                          </td>
-                          <td className="px-2 py-2">
-                            <input
-                              className={inputCls}
-                              value={row.task_name}
-                              onChange={(e) => updateFormRow(row.id, "task_name", e.target.value)}
-                              placeholder="e.g. Daily stock reconciliation"
-                              required
-                            />
-                          </td>
-                          <td className="px-2 py-2">
-                            <input
-                              className={inputCls}
-                              value={row.description}
-                              onChange={(e) => updateFormRow(row.id, "description", e.target.value)}
-                              placeholder="Details / checklist"
-                            />
-                          </td>
-                          <td className="px-2 py-2">
-                            <select
-                              className={inputCls}
-                              value={row.day_name}
-                              onChange={(e) => updateFormRow(row.id, "day_name", e.target.value)}
-                            >
-                              {DAY_OPTIONS.map((d) => (
-                                <option key={d} value={d}>
-                                  {d}
-                                </option>
-                              ))}
-                            </select>
-                          </td>
-                          <td className="px-2 py-2 text-center">
-                            <button
-                              type="button"
-                              disabled={formRows.length === 1}
-                              onClick={() => removeFormRow(row.id)}
-                              className="rounded-lg p-1 text-slate-400 hover:bg-rose-50 hover:text-rose-600 disabled:opacity-30 transition"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </button>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                          </span>
+                        </div>
+
+                        {/* Task Name */}
+                        <div className="flex-1 min-w-[200px]">
+                          <label className="block text-[11px] font-semibold uppercase tracking-wider text-slate-500 mb-1">
+                            Task Name <span className="text-rose-500">*</span>
+                          </label>
+                          <input
+                            className={inputCls}
+                            value={row.task_name}
+                            onChange={(e) => updateFormRow(row.id, "task_name", e.target.value)}
+                            placeholder="e.g. Daily stock reconciliation"
+                            required
+                          />
+                        </div>
+
+                        {/* Description */}
+                        <div className="flex-1 min-w-[220px]">
+                          <label className="block text-[11px] font-semibold uppercase tracking-wider text-slate-500 mb-1">
+                            Description
+                          </label>
+                          <input
+                            className={inputCls}
+                            value={row.description}
+                            onChange={(e) => updateFormRow(row.id, "description", e.target.value)}
+                            placeholder="Details / checklist instructions"
+                          />
+                        </div>
+
+                        {/* Delete Row Button */}
+                        <div className="flex items-end justify-end pt-2 sm:pt-0 shrink-0">
+                          <button
+                            type="button"
+                            disabled={formRows.length === 1}
+                            onClick={() => removeFormRow(row.id)}
+                            className="rounded-xl p-2.5 text-slate-400 hover:bg-rose-50 hover:text-rose-600 disabled:opacity-30 transition border border-transparent hover:border-rose-200"
+                            title="Remove entry"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Bottom Row: Days of Week Pills */}
+                      <div className="pt-2.5 border-t border-slate-200/70 flex flex-wrap items-center gap-2">
+                        <span className="text-xs font-semibold text-slate-600 flex items-center gap-1 shrink-0">
+                          <Calendar className="h-3.5 w-3.5 text-indigo-600" />
+                          Days of Week <span className="text-rose-500">*</span>:
+                        </span>
+                        <DayPillSelector
+                          value={row.days || []}
+                          onChange={(days) => updateFormRow(row.id, "days", days)}
+                        />
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </div>
 

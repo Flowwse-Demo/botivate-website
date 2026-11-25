@@ -34,6 +34,7 @@ import {
   fetchWeeklyCalls,
   fetchAllTasksWithSubtasks,
   postedByName,
+  fetchDepartments,
 } from "../../../services/schemaApi";
 import supabase from "../../../supabaseClient";
 import DataTable from "../shared/DataTable";
@@ -3486,11 +3487,13 @@ export default function TeamOverview({ userFilterData, userRole }) {
     userRole === "superadmin";
 
   const [teams, setTeams] = useState([]);
+  const [departments, setDepartments] = useState([]);
   const [taskStats, setTaskStats] = useState({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   // HOD: never use global "all teams" — only their team(s). Admin/superadmin keep "all".
   const [selectedTeamId, setSelectedTeamId] = useState(isHod ? null : "all");
+  const [selectedDeptId, setSelectedDeptId] = useState("all");
   const [selectedMember, setSelectedMember] = useState(null);
   // "all" | "active" | "inactive" — filters the member records by user account status
   const [activeFilter, setActiveFilter] = useState("all");
@@ -3502,57 +3505,51 @@ export default function TeamOverview({ userFilterData, userRole }) {
     try {
       let teamRows = [];
       if (userRole === "hod" && hodId) {
-        teamRows = await fetchTeamsForHod(hodId);
+        // HOD: fetch their teams + departments in parallel
+        const [hodTeams, depts] = await Promise.all([
+          fetchTeamsForHod(hodId),
+          fetchDepartments().catch(() => []),
+        ]);
+        teamRows = hodTeams;
+        setDepartments(depts);
       } else {
-        const { data, error: err } = await supabase
-          .from("teams")
-          .select(
-            `id, name, team_type, description, is_active, hod_id,
-             team_members ( id, user_id, users ( id, name, username, role, is_active ) )`
-          )
-          .eq("is_active", true)
-          .order("name", { ascending: true });
-        if (err) throw err;
-        teamRows = data || [];
+        // Fetch teams, all employees, and departments in parallel
+        const [teamsRes, empsRes, depts] = await Promise.all([
+          supabase
+            .from("teams")
+            .select(
+              `id, name, team_type, description, is_active, hod_id,
+               team_members ( id, user_id, users ( id, name, username, role, is_active, department_id ) )`
+            )
+            .eq("is_active", true)
+            .order("name", { ascending: true }),
+          supabase
+            .from("users")
+            .select("id, name, username, role, is_active, department_id")
+            .neq("role", "company")
+            .order("name", { ascending: true }),
+          fetchDepartments().catch(() => []),
+        ]);
 
-        // Employees who are in no team: shown under a synthetic "No Team" group
-        const { data: emps, error: empErr } = await supabase
-          .from("users")
-          .select("id, name, username, role, is_active")
-          .neq("role", "company")
-          .order("name", { ascending: true });
-        if (empErr) throw empErr;
+        if (teamsRes.error) throw teamsRes.error;
+        if (empsRes.error) throw empsRes.error;
+        teamRows = teamsRes.data || [];
+        setDepartments(depts);
+
         const inTeam = new Set();
         teamRows.forEach((t) =>
           (t.team_members || []).forEach((m) =>
             inTeam.add(Number(m.user_id || m.users?.id))
           )
         );
-        // Legacy parity: only people credited on at least one task (assigned_member_1/2)
-        // count as members; names containing "team" / "none" / "-" are skipped.
-        const assignedIds = new Set();
-        for (let from = 0; ; from += 1000) {
-          const { data: taskRows, error: taskErr } = await supabase
-            .from("user_tasks")
-            .select("assigned_member_1, assigned_member_2")
-            .order("id", { ascending: true })
-            .range(from, from + 999);
-          if (taskErr) throw taskErr;
-          (taskRows || []).forEach((r) => {
-            if (r.assigned_member_1) assignedIds.add(Number(r.assigned_member_1));
-            if (r.assigned_member_2) assignedIds.add(Number(r.assigned_member_2));
-          });
-          if (!taskRows || taskRows.length < 1000) break;
-        }
         const isSkippedName = (u) => {
           const s = (u.name || u.username || "").trim().toLowerCase();
           return !s || s.includes("team") || s === "none" || s === "-";
         };
-        const noTeam = (emps || []).filter(
-          (u) =>
-            !inTeam.has(Number(u.id)) &&
-            assignedIds.has(Number(u.id)) &&
-            !isSkippedName(u)
+        // Show all active non-company users not already in a team (removed the
+        // expensive full-table-scan loop that checked task assignment history)
+        const noTeam = (empsRes.data || []).filter(
+          (u) => !inTeam.has(Number(u.id)) && !isSkippedName(u)
         );
         if (noTeam.length) {
           teamRows = [
@@ -3605,17 +3602,23 @@ export default function TeamOverview({ userFilterData, userRole }) {
       });
 
       if (ids.length) {
-        // Primary ownership is assigned_member_1 only (same as Task List / Pending queues).
-        // After forward, previous owner becomes M2 and no longer counts as active on this task.
-        // Extra fields support dashboard columns: Last Assign Date, Time Required,
-        // Completion Rate, Completed On Time, Status.
-        // A task counts for BOTH credited members (M1 and M2), like the legacy dashboard did
-        // (legacy credited team_member_name / employee_name_1 / employee_name_2).
+        // Fetch only user_tasks (not subtasks) for roster stats — subtasks don't
+        // affect the dashboard columns and skipping them avoids a second full scan.
         const idList = ids.join(",");
-        const taskRows = await fetchAllTasksWithSubtasks(
-          "id, status, assigned_member_1, assigned_member_2, given_date, assigned_at, completed_at, expected_date_to_close, time_required",
-          (q) => q.or(`assigned_member_1.in.(${idList}),assigned_member_2.in.(${idList})`)
-        );
+        const taskSel =
+          "id, status, assigned_member_1, assigned_member_2, given_date, assigned_at, completed_at, expected_date_to_close, time_required";
+        const taskRows = [];
+        for (let from = 0; ; from += 1000) {
+          const { data, error: tErr } = await supabase
+            .from("user_tasks")
+            .select(taskSel)
+            .or(`assigned_member_1.in.(${idList}),assigned_member_2.in.(${idList})`)
+            .order("id", { ascending: true })
+            .range(from, from + 999);
+          if (tErr) throw tErr;
+          taskRows.push(...(data || []));
+          if (!data || data.length < 1000) break;
+        }
 
         const now = Date.now();
 
@@ -3726,6 +3729,7 @@ export default function TeamOverview({ userFilterData, userRole }) {
           username: u?.username || "",
           role: u?.role || "employee",
           isActive: u?.is_active !== false,
+          departmentId: u?.department_id || null,
           teams: [team.name],
         });
       });
@@ -3739,10 +3743,25 @@ export default function TeamOverview({ userFilterData, userRole }) {
   }, [members]);
 
   const filteredMembers = useMemo(() => {
-    if (activeFilter === "active") return members.filter((m) => m.isActive);
-    if (activeFilter === "inactive") return members.filter((m) => !m.isActive);
-    return members;
-  }, [members, activeFilter]);
+    let result = members;
+    if (activeFilter === "active") result = result.filter((m) => m.isActive);
+    else if (activeFilter === "inactive") result = result.filter((m) => !m.isActive);
+    if (selectedDeptId !== "all") {
+      if (selectedDeptId === "no-dept") {
+        result = result.filter((m) => !m.departmentId);
+      } else {
+        result = result.filter((m) => String(m.departmentId) === String(selectedDeptId));
+      }
+    }
+    return result;
+  }, [members, activeFilter, selectedDeptId]);
+
+  // If selected dept now has 0 members (e.g. after reload), reset to "all"
+  useEffect(() => {
+    if (selectedDeptId === "all" || selectedDeptId === "no-dept") return;
+    const count = members.filter((m) => String(m.departmentId) === String(selectedDeptId)).length;
+    if (count === 0) setSelectedDeptId("all");
+  }, [members, selectedDeptId]);
 
   const totals = useMemo(() => {
     return filteredMembers.reduce(
@@ -3791,37 +3810,51 @@ export default function TeamOverview({ userFilterData, userRole }) {
 
       <div className="flex flex-wrap items-center justify-between gap-3">
       <div className="flex flex-wrap gap-2">
-        {/* Admin / Superadmin: can see All teams. HOD: only their own team(s) — no All teams. */}
-        {!isHod && (
+        {/* All Departments button */}
+        <button
+          type="button"
+          onClick={() => setSelectedDeptId("all")}
+          className={`px-3.5 py-1.5 text-xs font-semibold rounded-full transition ${
+            selectedDeptId === "all"
+              ? "bg-blue-600 text-white shadow-sm"
+              : "bg-white text-gray-600 border border-gray-200 hover:bg-gray-50"
+          }`}
+        >
+          All Departments ({members.length})
+        </button>
+        {departments.map((d) => {
+          const count = members.filter((m) => String(m.departmentId) === String(d.id)).length;
+          if (count === 0) return null;
+          return (
+            <button
+              key={d.id}
+              type="button"
+              onClick={() => setSelectedDeptId(String(d.id))}
+              className={`px-3.5 py-1.5 text-xs font-semibold rounded-full transition ${
+                String(selectedDeptId) === String(d.id)
+                  ? "bg-blue-600 text-white shadow-sm"
+                  : "bg-white text-gray-600 border border-gray-200 hover:bg-gray-50"
+              }`}
+            >
+              {d.name}
+              <span className="ml-1 opacity-70">({count})</span>
+            </button>
+          );
+        })}
+        {members.some((m) => !m.departmentId) && (
           <button
             type="button"
-            onClick={() => setSelectedTeamId("all")}
+            onClick={() => setSelectedDeptId("no-dept")}
             className={`px-3.5 py-1.5 text-xs font-semibold rounded-full transition ${
-              selectedTeamId === "all"
-                ? "bg-blue-600 text-white shadow-sm"
+              selectedDeptId === "no-dept"
+                ? "bg-gray-700 text-white shadow-sm"
                 : "bg-white text-gray-600 border border-gray-200 hover:bg-gray-50"
             }`}
           >
-            All teams ({teams.filter((t) => !t.isNoTeam).length})
+            No Department
+            <span className="ml-1 opacity-70">({members.filter((m) => !m.departmentId).length})</span>
           </button>
         )}
-        {teams.map((t) => (
-          <button
-            key={t.id}
-            type="button"
-            onClick={() => setSelectedTeamId(String(t.id))}
-            className={`px-3.5 py-1.5 text-xs font-semibold rounded-full transition ${
-              String(selectedTeamId) === String(t.id)
-                ? "bg-blue-600 text-white shadow-sm"
-                : "bg-white text-gray-600 border border-gray-200 hover:bg-gray-50"
-            }`}
-          >
-            {t.name}
-            <span className="ml-1 opacity-70">
-              ({(t.team_members || []).length})
-            </span>
-          </button>
-        ))}
       </div>
 
       {/* Active / Inactive filter — right side dropdown, filters all member records below */}

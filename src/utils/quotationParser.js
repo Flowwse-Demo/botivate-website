@@ -7,8 +7,7 @@ const Y_TOLERANCE = 3;
 
 async function readPdfLines(file) {
   const pdfjs = await import("pdfjs-dist");
-  const workerUrl = (await import("pdfjs-dist/build/pdf.worker.min.mjs?url")).default;
-  pdfjs.GlobalWorkerOptions.workerSrc = workerUrl;
+  pdfjs.GlobalWorkerOptions.workerSrc = "/pdf.worker.min.mjs";
 
   const data = new Uint8Array(await file.arrayBuffer());
   const doc = await pdfjs.getDocument({ data }).promise;
@@ -142,14 +141,38 @@ export async function readQuotation(file) {
     all.match(/\b(\d{1,2}[-/.]\d{1,2}[-/.]\d{4})\b/);
   if (date) fields.start_date = toIsoDate(date[1]);
 
-  // Party: the block under "To" - prefer the company line over the contact person's name.
+  // "To" block: contact person (first line), party name (business name), phone number.
   const toIdx = lines.findIndex((l) => /^(to|to,|to:|bill to|billed to|quotation for|client)$/i.test(l.text.trim()));
   if (toIdx !== -1 && lines[toIdx + 1]) {
     const block = lines
-      .slice(toIdx + 1, toIdx + 6)
-      .map((l) => l.text.replace(/\s{2,}/g, " ").trim());
-    const company = block.find((t) => /\b(pvt|private|ltd|limited|llp|llc|inc|traders|industries|enterprises|mills|corporation|co\.)\b/i.test(t));
-    fields.party_name = company || block[0];
+      .slice(toIdx + 1, toIdx + 8)
+      .map((l) => l.text.replace(/\s{2,}/g, " ").trim())
+      .filter(Boolean);
+
+    // First non-empty line is always the contact person's name.
+    if (block[0]) fields.contact_person = block[0];
+
+    // Phone: a line that is mostly digits/spaces/+/- with no letters (e.g. "91 73548 33551").
+    const isPhone = (t) => /^[\d\s+()\-]{7,}$/.test(t) || /^\+?\d[\d\s\-]{8,}$/.test(t);
+    const phoneLine = block.find(isPhone);
+    if (phoneLine) fields.phone = phoneLine.replace(/\s+/g, " ").trim();
+
+    // Address: contains a 6-digit pin, multiple commas, or address keywords.
+    const isAddress = (t) =>
+      /\d{6}/.test(t) ||
+      (t.match(/,/g) || []).length >= 2 ||
+      /\b(road|street|nagar|colony|phase|sector|block|dist|state|pin|floor|plot|flat|near)\b/i.test(t);
+
+    // Company name: prefer a known entity keyword; otherwise the first non-contact, non-address, non-phone line.
+    const withKeyword = block.find((t) =>
+      /\b(pvt|private|ltd|limited|llp|llc|inc|traders|industries|enterprises|mills|corporation|co\.)\b/i.test(t)
+    );
+    if (withKeyword) {
+      fields.party_name = withKeyword;
+    } else {
+      const candidate = block.slice(1).find((t) => !isAddress(t) && !isPhone(t));
+      fields.party_name = candidate || block[0];
+    }
   } else {
     const m = all.match(/(?:M\/s\.?|Client|Party|Customer)\s*[:-]\s*(.+)/i);
     if (m) fields.party_name = m[1].trim();

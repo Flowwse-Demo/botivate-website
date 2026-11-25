@@ -52,6 +52,8 @@ async function storeFile(file, failed) {
 
 const FIELD_LABELS = {
   party_name: "Party name",
+  contact_person: "Contact person",
+  phone: "Phone",
   quotation_number: "Quotation number",
   start_date: "Start date",
   end_date: "End date",
@@ -130,13 +132,14 @@ export default function OrderForm({ user, setActiveTab, modal = false, onClose, 
   const [quotationFile, setQuotationFile] = useState(null);
   const [systemRows, setSystemRows] = useState([emptySystem()]);
   const [autofill, setAutofill] = useState(null);
-  const [login, setLogin] = useState({ username: "", password: "" });
+  const [login, setLogin] = useState({ username: "", password: "", phone: "", contact_person: "" });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [fieldErrors, setFieldErrors] = useState({});
   const [done, setDone] = useState(false);
   const [misList, setMisList] = useState([]);
   const [selectedMis, setSelectedMis] = useState("");
+  const [companiesList, setCompaniesList] = useState([]);
 
   // Load active employee + admin users for the MIS dropdown
   useEffect(() => {
@@ -150,6 +153,9 @@ export default function OrderForm({ user, setActiveTab, modal = false, onClose, 
           )
         )
       )
+      .catch(() => {});
+    fetchCompanies()
+      .then((companies) => setCompaniesList(companies))
       .catch(() => {});
   }, []);
 
@@ -192,7 +198,15 @@ export default function OrderForm({ user, setActiveTab, modal = false, onClose, 
     setAutofill({ state: "reading" });
     try {
       const { fields, systems, filled } = await readQuotation(file);
-      setForm((f) => ({ ...f, ...fields }));
+      const { contact_person, phone, ...formFields } = fields;
+      setForm((f) => ({ ...f, ...formFields }));
+      if (contact_person || phone) {
+        setLogin((l) => ({
+          ...l,
+          ...(contact_person ? { contact_person } : {}),
+          ...(phone ? { phone } : {}),
+        }));
+      }
       if (systems.length) setSystemRows(systems);
       setFieldErrors({});
       setAutofill({ state: filled.length ? "done" : "empty", filled });
@@ -260,7 +274,12 @@ export default function OrderForm({ user, setActiveTab, modal = false, onClose, 
           const res = await createSystemsForParty(
             form.party_name,
             systemsToSave,
-            wantsLogin ? { username: login.username.trim(), password: login.password.trim() } : null
+            wantsLogin ? {
+              username: login.username.trim(),
+              password: login.password.trim(),
+              phone: login.phone.trim(),
+              contact_person: login.contact_person.trim(),
+            } : null
           );
           if (res.created) {
             alert(
@@ -273,7 +292,7 @@ export default function OrderForm({ user, setActiveTab, modal = false, onClose, 
           alert("Order saved, but the customer account / systems could not be added: " + (e?.message || e));
         }
       }
-      setLogin({ username: "", password: "" });
+      setLogin({ username: "", password: "", phone: "", contact_person: "" });
       setSelectedMis("");
       setDone(true);
       setSystemRows([emptySystem()]);
@@ -327,11 +346,16 @@ export default function OrderForm({ user, setActiveTab, modal = false, onClose, 
           <label className={labelCls}>
             Party name <span className="text-red-500">*</span>
           </label>
-          <input
-            className={`${inputCls} ${fieldErrors.party_name ? "border-red-300" : ""}`}
+          <SearchableDropdown
+            options={companiesList.map((c) => ({ value: c._label || c.company_name || c.name, label: c._label || c.company_name || c.name }))}
             value={form.party_name}
-            onChange={set("party_name")}
-            placeholder="e.g. RMA Traders"
+            onChange={(val) => {
+              setForm((f) => ({ ...f, party_name: val }));
+              if (fieldErrors.party_name) setFieldErrors((fe) => { const n = { ...fe }; delete n.party_name; return n; });
+            }}
+            placeholder="Select or type new company…"
+            creatable
+            buttonClassName={`${inputCls} ${fieldErrors.party_name ? "border-red-300" : ""}`}
           />
           {fieldErrors.party_name && (
             <p className="mt-1 text-xs text-red-600">{fieldErrors.party_name}</p>
@@ -599,6 +623,27 @@ export default function OrderForm({ user, setActiveTab, modal = false, onClose, 
                 autoComplete="off"
               />
               {fieldErrors.customer_password && <p className="mt-1 text-xs text-red-600">{fieldErrors.customer_password}</p>}
+            </div>
+            <div>
+              <label className={labelCls}>Client Phone / WhatsApp</label>
+              <input
+                className={inputCls}
+                value={login.phone}
+                onChange={(e) => setLogin((l) => ({ ...l, phone: e.target.value }))}
+                placeholder="e.g. +919876543210"
+                inputMode="tel"
+                autoComplete="off"
+              />
+            </div>
+            <div>
+              <label className={labelCls}>Contact Person Name</label>
+              <input
+                className={inputCls}
+                value={login.contact_person}
+                onChange={(e) => setLogin((l) => ({ ...l, contact_person: e.target.value }))}
+                placeholder="e.g. Ramesh Sharma"
+                autoComplete="off"
+              />
             </div>
           </div>
           <p className="mt-2 text-xs text-slate-500">

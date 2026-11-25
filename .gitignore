@@ -6,6 +6,8 @@ node_modules/
 # Build artifacts
 dist/
 dist-ssr/
+.vite/
+coverage/
 *.local
 *.zip
 cmp-logo.zip

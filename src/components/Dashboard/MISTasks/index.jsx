@@ -217,6 +217,7 @@ export default function MISTasksPage({ user, userRole, userFilterData, setActive
         selectedAssignedUserId,
         page,
         pageSize,
+        skipSync: true,
       });
       setTasks(res?.rows || []);
       setTotalCount(res?.count || 0);
@@ -768,6 +769,7 @@ export default function MISTasksPage({ user, userRole, userFilterData, setActive
                   <th className="w-12 px-4 py-3 text-center">#</th>
                   <th className="px-4 py-3">Task & Description</th>
                   <th className="px-4 py-3 text-center">Day of Week</th>
+                  <th className="px-4 py-3 text-center">Status</th>
                   <th className="px-4 py-3 text-center">Actions</th>
                 </tr>
               </thead>
@@ -803,6 +805,20 @@ export default function MISTasksPage({ user, userRole, userFilterData, setActive
                         >
                           {t.day_name || "Monday"}
                         </span>
+                      </td>
+
+                      {/* Status Badge — click to cycle */}
+                      <td className="px-4 py-3 text-center">
+                        <button
+                          type="button"
+                          onClick={() => handleToggleStatus(t)}
+                          title="Click to change status"
+                          className={`inline-flex rounded-lg px-2.5 py-1 text-xs font-semibold ring-1 ring-inset cursor-pointer hover:opacity-80 transition ${getStatusBadge(
+                            t.status
+                          )}`}
+                        >
+                          {t.status || "Pending"}
+                        </button>
                       </td>
 
                       {/* Actions */}

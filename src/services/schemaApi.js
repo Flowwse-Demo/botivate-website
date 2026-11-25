@@ -667,6 +667,7 @@ export const SIDEBAR_PAGE_OPTIONS = [
   { key: "meeting", label: "Meeting (Training & SOP)" },
   { key: "holidays", label: "Holidays" },
   { key: "company-systems", label: "My Systems (Company)" },
+  { key: "company-tasks", label: "Task Overview (Company)" },
   { key: "company-profile", label: "Company Profile" },
   { key: "add-user", label: "Add User (Settings)" },
   { key: "add-company", label: "Add Company (Settings)" },
@@ -769,7 +770,7 @@ export const setUserActive = async (id, isActive) => {
 // Needs migration_user_company_details.sql (phone, email, department, company info columns).
 // ---------------------------------------------------------------------------
 const ACCOUNT_TEXT_FIELDS = [
-  "phone", "email", "department", "contact_person",
+  "phone", "email", "department", "contact_person", "contact_phone",
   "address", "city", "state", "gst_number", "website", "industry",
 ];
 
@@ -783,6 +784,8 @@ const accountRow = (p) => {
   else if (p.role) row.company_name = null;
   if (p.permission !== undefined) row.permission = p.permission;
   if (p.is_active !== undefined) row.is_active = !!p.is_active;
+  // department_id FK (preferred) + department text (backward compat)
+  if (p.department_id !== undefined) row.department_id = p.department_id ? Number(p.department_id) : null;
   ACCOUNT_TEXT_FIELDS.forEach((f) => {
     if (p[f] !== undefined) row[f] = String(p[f] ?? "").trim() || null;
   });
@@ -792,10 +795,15 @@ const accountRow = (p) => {
 export const fetchAccounts = async (roles) => {
   const { data, error } = await supabase
     .from("users")
-    .select("*")
+    .select("*, dept:departments!department_id(id, name)")
     .in("role", roles)
     .order("name", { ascending: true });
-  if (error) throw error;
+  if (error) {
+    // fallback: schema cache may not have column yet — plain select
+    const fb = await supabase.from("users").select("*").in("role", roles).order("name", { ascending: true });
+    if (fb.error) throw fb.error;
+    return fb.data || [];
+  }
   return data || [];
 };
 
@@ -1648,15 +1656,7 @@ export const ensureOrderMISTasksSynced = async () => {
       await supabase.from("mis_tasks").insert(toInsert);
     }
 
-    // Clean up legacy "Unassigned" template rows now that each template has
-    // been fanned out to every order's MIS person. These leftover rows show up
-    // in the list as an extra Unassigned entry that nobody owns.
-    const orphanIds = allTasks
-      .filter((t) => !t.order_id && !t.assigned_user_id)
-      .map((t) => t.id);
-    if (orphanIds.length > 0) {
-      await supabase.from("mis_tasks").delete().in("id", orphanIds);
-    }
+    // Keep template rows — they are valid tasks awaiting assignment.
   } catch (err) {
     console.warn("Auto-sync of MIS tasks across orders failed:", err);
   }
@@ -1848,10 +1848,7 @@ export const fetchMISTasks = async ({
     });
   }
 
-  // Safety net: drop orphan rows that have neither an order link nor an assignee.
-  // The sync step deletes these, but if a delete was blocked we still don't want
-  // the admin list to show a ghost "Unassigned" row.
-  data = data.filter((t) => t.assigned_user_id || t.order_id);
+  // Show all tasks from mis_tasks table — including template rows with no order/assignee yet.
 
   if (paginated) {
     return { rows: data, count: totalCount ?? data.length };
@@ -2459,12 +2456,15 @@ export const createSystemsForParty = async (partyName, systems, login = null) =>
     let username = (login?.username || "").trim() || base;
     if (!login?.username) for (let i = 2; taken.has(username.toLowerCase()); i++) username = `${base}${i}`;
     const password = (login?.password || "").trim() || `${base.slice(0, 8)}@123`;
-    company = await createAppUser({
+    company = await createAccount({
       username,
       password,
       name: partyName.trim(),
       company_name: partyName.trim(),
       role: "company",
+      phone: (login?.phone || "").trim() || null,
+      contact_person: (login?.contact_person || "").trim() || null,
+      contact_phone: (login?.contact_phone || "").trim() || null,
       permission: { dashboard: true, "assign-task": true, "pending-tasks": true },
     });
     created = { username, password };
@@ -2842,4 +2842,53 @@ export const rejectSystemRequest = async (req, { approverId, remarks }) => {
     })
     .eq("id", req.id);
   if (error) throw error;
+};
+
+// ---------------------------------------------------------------------------
+// Departments — manage organisational departments
+// Table: departments (id, name, is_active, created_at, updated_at)
+// ---------------------------------------------------------------------------
+export const fetchDepartments = async ({ includeInactive = false } = {}) => {
+  let query = supabase
+    .from("departments")
+    .select("id, name, is_active, created_at, updated_at")
+    .order("name", { ascending: true });
+  if (!includeInactive) query = query.eq("is_active", true);
+  const { data, error } = await query;
+  if (error) throw error;
+  return data || [];
+};
+
+export const createDepartment = async ({ name }) => {
+  const trimmed = String(name || "").trim();
+  if (!trimmed) throw new Error("Department name is required.");
+  const { data, error } = await supabase
+    .from("departments")
+    .insert([{ name: trimmed, is_active: true }])
+    .select("id, name, is_active, created_at, updated_at")
+    .single();
+  if (error) throw error;
+  return data;
+};
+
+export const updateDepartment = async (id, { name, is_active }) => {
+  if (!id) throw new Error("Department id is required.");
+  const patch = {};
+  if (name !== undefined) patch.name = String(name).trim();
+  if (is_active !== undefined) patch.is_active = !!is_active;
+  const { data, error } = await supabase
+    .from("departments")
+    .update(patch)
+    .eq("id", id)
+    .select("id, name, is_active, created_at, updated_at")
+    .single();
+  if (error) throw error;
+  return data;
+};
+
+export const deleteDepartment = async (id) => {
+  if (!id) throw new Error("Department id is required.");
+  const { error } = await supabase.from("departments").delete().eq("id", id);
+  if (error) throw error;
+  return true;
 };

@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Search, ChevronDown, Check } from 'lucide-react';
+import { Search, ChevronDown, Check, Plus } from 'lucide-react';
 
 /**
  * SearchableDropdown Component
@@ -11,7 +11,7 @@ import { Search, ChevronDown, Check } from 'lucide-react';
  * @param {string} placeholder - Text to show when no value is selected.
  * @param {string} className - Additional CSS classes for the container.
  */
-const SearchableDropdown = ({ options, value, onChange, onAdd, placeholder = "Select option...", className = "", height = "h-[34px] md:h-[38px]", buttonClassName }) => {
+const SearchableDropdown = ({ options, value, onChange, onAdd, creatable = false, placeholder = "Select option...", className = "", height = "h-[34px] md:h-[38px]", buttonClassName }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [openUp, setOpenUp] = useState(false);
@@ -69,8 +69,8 @@ const SearchableDropdown = ({ options, value, onChange, onAdd, placeholder = "Se
         onClick={handleToggle}
         className={`w-full flex justify-between items-center cursor-pointer group ${buttonClassName || `bg-white border border-gray-300 rounded px-2 py-1 hover:border-indigo-500 transition-all ${height} shadow-sm outline-none focus:ring-1 focus:ring-indigo-500/30 active:scale-[0.98]`}`}
       >
-        <span className={`text-[13px] md:text-[15px] truncate ${selectedOption ? 'text-gray-900' : 'text-gray-400'}`}>
-          {selectedOption ? selectedOption.label : placeholder}
+        <span className={`text-[13px] md:text-[15px] truncate ${(selectedOption || (creatable && value)) ? 'text-gray-900' : 'text-gray-400'}`}>
+          {selectedOption ? selectedOption.label : (creatable && value) ? value : placeholder}
         </span>
         <ChevronDown
           size={14}
@@ -121,8 +121,24 @@ const SearchableDropdown = ({ options, value, onChange, onAdd, placeholder = "Se
                 </div>
               ))
             ) : (
-              <div className="px-3 py-4 text-[10px] text-center text-gray-400 italic font-medium uppercase tracking-tight">
-                No matching results found
+              !creatable && (
+                <div className="px-3 py-4 text-[10px] text-center text-gray-400 italic font-medium uppercase tracking-tight">
+                  No matching results found
+                </div>
+              )
+            )}
+            {creatable && searchTerm.trim() && !options.some(o => String(o.label).toLowerCase() === searchTerm.trim().toLowerCase()) && (
+              <div
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onChange(searchTerm.trim());
+                  setIsOpen(false);
+                  setSearchTerm("");
+                }}
+                className="px-3 py-2 text-[13px] md:text-[15px] cursor-pointer flex items-center gap-2 text-indigo-700 hover:bg-indigo-50 border-t border-gray-100 transition-colors"
+              >
+                <Plus size={13} strokeWidth={2.5} className="shrink-0" />
+                <span>Add "<span className="font-semibold">{searchTerm.trim()}</span>"</span>
               </div>
             )}
           </div>

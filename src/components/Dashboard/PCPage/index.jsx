@@ -14,6 +14,7 @@ import {
   X,
   ChevronDown,
   User,
+  RefreshCw,
 } from "lucide-react";
 import supabase from "../../../supabaseClient";
 import {
@@ -672,12 +673,20 @@ export default function PCPage({ userRole = "admin", user, userFilterData }) {
         console.warn("weekly_calls load:", e?.message);
       }
 
-      setRows([
-        ...partyMapped,
-        ...delMapped,
-        ...checklistMapped,
-        ...weeklyMapped,
-      ]);
+      // One DB row can expand into several occurrences (a weekly call or a
+      // checklist repeated across days) and they all carry the same id, so a
+      // source+id key would repeat and React would reuse the wrong rows.
+      const seen = new Map();
+      setRows(
+        [...partyMapped, ...delMapped, ...checklistMapped, ...weeklyMapped].map(
+          (r) => {
+            const base = `${r.source}-${r.id}-${r.planned_date || "na"}`;
+            const n = (seen.get(base) || 0) + 1;
+            seen.set(base, n);
+            return { ...r, _key: n === 1 ? base : `${base}#${n}` };
+          }
+        )
+      );
     } catch (e) {
       console.error(e);
       setError(e?.message || "Failed to load PC tasks.");
@@ -730,7 +739,7 @@ export default function PCPage({ userRole = "admin", user, userFilterData }) {
     })();
   }, [rows]);
 
-  const rowKey = (row) => `${row.source}-${row.id}`;
+  const rowKey = (row) => row._key || `${row.source}-${row.id}`;
   const saveTimersRef = useRef({});
 
   const persistRemarks = async (row, text) => {
@@ -788,8 +797,27 @@ export default function PCPage({ userRole = "admin", user, userFilterData }) {
     };
   }, []);
 
+  const searchFilteredRows = useMemo(() => {
+    if (!search.trim()) return rows;
+    const q = search.trim().toLowerCase();
+    return rows.filter((r) =>
+      [
+        r.system_name,
+        r.party_name,
+        r.person_name,
+        r.task_name,
+        r.remarks,
+        r.context_label,
+        r.assignee?.name,
+      ]
+        .map((v) => String(v || "").toLowerCase())
+        .join(" ")
+        .includes(q)
+    );
+  }, [rows, search]);
+
   const filtered = useMemo(() => {
-    let list = [...rows];
+    let list = searchFilteredRows;
     if (sourceFilter === "party") list = list.filter((r) => r.source === "party");
     if (sourceFilter === "delegation")
       list = list.filter((r) => r.source === "delegation");
@@ -797,29 +825,12 @@ export default function PCPage({ userRole = "admin", user, userFilterData }) {
       list = list.filter((r) => r.source === "checklist");
     if (sourceFilter === "weekly")
       list = list.filter((r) => r.source === "weekly");
-    if (search.trim()) {
-      const q = search.trim().toLowerCase();
-      list = list.filter((r) =>
-        [
-          r.system_name,
-          r.party_name,
-          r.person_name,
-          r.task_name,
-          r.remarks,
-          r.context_label,
-          r.assignee?.name,
-        ]
-          .map((v) => String(v || "").toLowerCase())
-          .join(" ")
-          .includes(q)
-      );
-    }
-    return list.sort((a, b) => {
+    return [...list].sort((a, b) => {
       const da = a.delay ?? -9999;
       const db = b.delay ?? -9999;
       return db - da;
     });
-  }, [rows, search, sourceFilter]);
+  }, [searchFilteredRows, sourceFilter]);
 
   useEffect(() => {
     setCurrentPage(1);
@@ -833,13 +844,13 @@ export default function PCPage({ userRole = "admin", user, userFilterData }) {
 
   const counts = useMemo(
     () => ({
-      all: rows.length,
-      party: rows.filter((r) => r.source === "party").length,
-      delegation: rows.filter((r) => r.source === "delegation").length,
-      checklist: rows.filter((r) => r.source === "checklist").length,
-      weekly: rows.filter((r) => r.source === "weekly").length,
+      all: searchFilteredRows.length,
+      party: searchFilteredRows.filter((r) => r.source === "party").length,
+      delegation: searchFilteredRows.filter((r) => r.source === "delegation").length,
+      checklist: searchFilteredRows.filter((r) => r.source === "checklist").length,
+      weekly: searchFilteredRows.filter((r) => r.source === "weekly").length,
     }),
-    [rows]
+    [searchFilteredRows]
   );
 
   const renderRow = (row) => {
@@ -874,10 +885,17 @@ export default function PCPage({ userRole = "admin", user, userFilterData }) {
               <p className="text-sm font-medium text-slate-800">
                 {row.person_name || "—"}
               </p>
-              {row.source !== "delegation" && row.source !== "checklist" && row.source !== "weekly" && (
-                <p className="text-xs text-slate-500">
-                  {row.party_name}
-                </p>
+              {row.source === "party" && (
+                <p className="text-xs text-slate-500">{row.party_name}</p>
+              )}
+              {row.source === "delegation" && (
+                <p className="text-xs font-medium text-violet-500">Delegation</p>
+              )}
+              {row.source === "checklist" && (
+                <p className="text-xs font-medium text-emerald-600">Checklist</p>
+              )}
+              {row.source === "weekly" && (
+                <p className="text-xs font-medium text-purple-500">Weekly Call</p>
               )}
             </div>
           </div>
@@ -1016,7 +1034,7 @@ export default function PCPage({ userRole = "admin", user, userFilterData }) {
               className="w-full rounded-xl border border-slate-200 bg-white py-2 pl-9 pr-3 text-sm outline-none focus:border-indigo-300 focus:ring-2 focus:ring-indigo-500/30"
             />
           </div>
-          <div className="flex flex-wrap gap-1.5">
+          <div className="flex flex-wrap gap-1.5 items-center">
             {[
               { key: "all", label: "All", n: counts.all },
               { key: "party", label: "Party", n: counts.party },
@@ -1038,6 +1056,15 @@ export default function PCPage({ userRole = "admin", user, userFilterData }) {
                 <span className="ml-1 opacity-70">({f.n})</span>
               </button>
             ))}
+            <button
+              type="button"
+              onClick={load}
+              disabled={loading}
+              title="Refresh data"
+              className="rounded-lg p-1.5 text-slate-500 ring-1 ring-slate-200 bg-white hover:bg-slate-50 transition disabled:opacity-50"
+            >
+              <RefreshCw className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} />
+            </button>
           </div>
         </div>
 

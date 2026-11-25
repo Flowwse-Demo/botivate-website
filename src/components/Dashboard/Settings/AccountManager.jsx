@@ -1,9 +1,9 @@
 "use client";
 
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { createPortal } from "react-dom";
 import {
-  Eye, EyeOff, Save, X, Plus, Search, Pencil, RefreshCw,
+  Eye, EyeOff, Save, X, Plus, Search, Pencil, RefreshCw, Trash2,
   CheckCircle2, AlertCircle, ToggleLeft, ToggleRight,
   LayoutGrid, BarChart3, FileText, Clock, CheckCircle,
   Settings, Bot, Sparkles, UserPlus, ClipboardList,
@@ -17,6 +17,9 @@ import {
   updateAccount,
   setUserActive,
   SIDEBAR_PAGE_OPTIONS,
+  fetchDepartments,
+  createDepartment,
+  deleteDepartment,
 } from "../../../services/schemaApi";
 
 // ---- default sidebar access per role --------------------------------------
@@ -78,6 +81,7 @@ const DEFAULT_PERMISSIONS = {
   },
   company: {
     dashboard: true,
+    "assign-task": true,
     "company-systems": true,
     "company-tasks": true,
     troubleshoot: true,
@@ -274,6 +278,7 @@ const PAGE_META = {
 // pages that make sense to offer a company account
 const COMPANY_PAGES = new Set([
   "dashboard",
+  "assign-task",
   "company-systems",
   "company-tasks",
   "company-profile",
@@ -335,19 +340,21 @@ const permKeys = (p) => (p && typeof p === "object" ? Object.keys(p).filter((k) 
 
 const blankForm = (kind) => ({
   name: "", username: "", password: "", role: kind === "company" ? "company" : "employee",
-  is_active: true, phone: "", email: "", department: "", contact_person: "",
+  is_active: true, phone: "", email: "", department: "", department_id: null, contact_person: "",
   address: "", city: "", state: "", gst_number: "", website: "", industry: "",
 });
 
 const fromRow = (u) => ({
   name: u.name || "", username: u.username || "", password: "", role: u.role,
   is_active: u.is_active !== false, phone: u.phone || "", email: u.email || "",
-  department: u.department || "", contact_person: u.contact_person || "",
+  department: u.dept?.name || u.department || "",
+  department_id: u.department_id || null,
+  contact_person: u.contact_person || "",
   address: u.address || "", city: u.city || "", state: u.state || "",
   gst_number: u.gst_number || "", website: u.website || "", industry: u.industry || "",
 });
 
-function AccountModal({ kind, mode, initial, editingId, existing, onClose, onSaved }) {
+function AccountModal({ kind, mode, initial, editingId, existing, onClose, onSaved, departments = [], onDeptAdded }) {
   const isCompany = kind === "company";
   const [form, setForm] = useState(initial);
   const [keys, setKeys] = useState(initial.__keys);
@@ -356,6 +363,17 @@ function AccountModal({ kind, mode, initial, editingId, existing, onClose, onSav
   const [showPw, setShowPw] = useState(mode === "create");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [deptDropOpen, setDeptDropOpen] = useState(false);
+  const [addingDept, setAddingDept] = useState(false);
+  const [newDeptName, setNewDeptName] = useState("");
+  const [savingDept, setSavingDept] = useState(false);
+  const deptDropRef = useRef(null);
+  useEffect(() => {
+    if (!deptDropOpen) return;
+    const handler = (e) => { if (deptDropRef.current && !deptDropRef.current.contains(e.target)) setDeptDropOpen(false); };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [deptDropOpen]);
   const set = (k, v) => setForm((p) => ({ ...p, [k]: v }));
 
   const pages = useMemo(
@@ -538,13 +556,105 @@ function AccountModal({ kind, mode, initial, editingId, existing, onClose, onSav
 
               {!isCompany && (
                 <Field label="Department">
-                  <input className={inputCls} list="dept-list" value={form.department}
-                    placeholder="Pick or type a department" onChange={(e) => set("department", e.target.value)} />
-                  <datalist id="dept-list">
-                    {[...new Set([...DEPARTMENTS, ...existing.map((u) => u.department).filter(Boolean)])].map((d) => (
-                      <option key={d} value={d} />
-                    ))}
-                  </datalist>
+                  <div className="relative" ref={deptDropRef}>
+                    <button
+                      type="button"
+                      onClick={() => setDeptDropOpen((v) => !v)}
+                      className={`${inputCls} flex items-center justify-between text-left`}
+                    >
+                      <span className={form.department ? "text-gray-900" : "text-gray-400"}>
+                        {form.department || "Pick a department"}
+                      </span>
+                      <svg className={`w-4 h-4 text-gray-400 transition-transform ${deptDropOpen ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                    </button>
+
+                    {deptDropOpen && (
+                      <div className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-xl shadow-lg overflow-hidden">
+                        {/* Clear option */}
+                        {form.department && (
+                          <button
+                            type="button"
+                            onClick={() => { set("department", ""); set("department_id", null); setDeptDropOpen(false); }}
+                            className="w-full px-3.5 py-2 text-sm text-left text-gray-400 hover:bg-gray-50 italic"
+                          >
+                            — Clear selection
+                          </button>
+                        )}
+                        {/* Only DB departments */}
+                        <div className="max-h-44 overflow-y-auto">
+                          {departments.length === 0 ? (
+                            <p className="px-3.5 py-3 text-xs text-gray-400 italic">No departments yet. Add one below.</p>
+                          ) : (
+                            departments.map((d) => (
+                              <button
+                                key={d.id}
+                                type="button"
+                                onClick={() => { set("department", d.name); set("department_id", d.id); setDeptDropOpen(false); }}
+                                className={`w-full px-3.5 py-2 text-sm text-left hover:bg-indigo-50 hover:text-indigo-700 transition ${form.department === d.name ? "bg-indigo-50 text-indigo-700 font-semibold" : "text-gray-700"}`}
+                              >
+                                {d.name}
+                              </button>
+                            ))
+                          )}
+                        </div>
+                        {/* Divider */}
+                        <div className="border-t border-gray-100" />
+                        {/* Add new department */}
+                        {!addingDept ? (
+                          <button
+                            type="button"
+                            onClick={() => { setAddingDept(true); setNewDeptName(""); }}
+                            className="w-full px-3.5 py-2.5 text-sm text-left text-indigo-600 font-semibold hover:bg-indigo-50 flex items-center gap-2 transition"
+                          >
+                            <Plus className="w-4 h-4" /> Add New Department
+                          </button>
+                        ) : (
+                          <div className="p-2.5 space-y-2">
+                            <input
+                              autoFocus
+                              className="w-full px-3 py-2 text-sm border border-indigo-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500/25"
+                              placeholder="Department name…"
+                              value={newDeptName}
+                              onChange={(e) => setNewDeptName(e.target.value)}
+                              onKeyDown={(e) => { if (e.key === "Escape") setAddingDept(false); }}
+                            />
+                            <div className="flex gap-1.5">
+                              <button
+                                type="button"
+                                disabled={savingDept || !newDeptName.trim()}
+                                onClick={async () => {
+                                  if (!newDeptName.trim()) return;
+                                  setSavingDept(true);
+                                  try {
+                                    const saved = await createDepartment({ name: newDeptName.trim() });
+                                    onDeptAdded?.(saved);
+                                    set("department", saved.name);
+                                    set("department_id", saved.id);
+                                    setAddingDept(false);
+                                    setDeptDropOpen(false);
+                                  } catch (ex) {
+                                    alert(ex.message || "Failed to add department.");
+                                  } finally {
+                                    setSavingDept(false);
+                                  }
+                                }}
+                                className="flex-1 px-3 py-1.5 rounded-lg text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 transition"
+                              >
+                                {savingDept ? "Saving…" : "Save"}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setAddingDept(false)}
+                                className="px-3 py-1.5 rounded-lg text-xs font-semibold text-gray-600 hover:bg-gray-100 transition"
+                              >
+                                Cancel
+                              </button>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
                 </Field>
               )}
 
@@ -768,13 +878,34 @@ export default function AccountManager({ kind, title, subtitle, icon: Icon }) {
   const [search, setSearch] = useState("");
   const [roleFilter, setRoleFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [deptFilter, setDeptFilter] = useState("all");
   const [modal, setModal] = useState(null); // { mode, row }
+  const [departments, setDepartments] = useState([]);
+
+  // Dept filter dropdown state
+  const [deptDropOpen, setDeptDropOpen] = useState(false);
+  const [addingFilterDept, setAddingFilterDept] = useState(false);
+  const [newFilterDeptName, setNewFilterDeptName] = useState("");
+  const [savingFilterDept, setSavingFilterDept] = useState(false);
+  const [deletingDeptId, setDeletingDeptId] = useState(null);
+  const filterDeptRef = useRef(null);
+  useEffect(() => {
+    if (!deptDropOpen) return;
+    const handler = (e) => { if (filterDeptRef.current && !filterDeptRef.current.contains(e.target)) { setDeptDropOpen(false); setAddingFilterDept(false); } };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [deptDropOpen]);
 
   const load = useCallback(async () => {
     setLoading(true);
     setError("");
     try {
-      setRows(await fetchAccounts(roles));
+      const [accountRows, deptRows] = await Promise.all([
+        fetchAccounts(roles),
+        fetchDepartments({ includeInactive: false }).catch(() => []),
+      ]);
+      setRows(accountRows);
+      setDepartments(deptRows);
     } catch (e) {
       setError(e.message || "Failed to load.");
     } finally {
@@ -799,11 +930,15 @@ export default function AccountManager({ kind, title, subtitle, icon: Icon }) {
       if (roleFilter !== "all" && u.role !== roleFilter) return false;
       if (statusFilter === "active" && !u.is_active) return false;
       if (statusFilter === "inactive" && u.is_active) return false;
+      if (!isCompany && deptFilter !== "all") {
+        const userDept = u.dept?.name || u.department || "";
+        if (userDept !== deptFilter) return false;
+      }
       if (!q) return true;
       return [u.name, u.username, u.phone, u.email, u.department, u.company_name, u.contact_person, u.city]
         .some((v) => String(v || "").toLowerCase().includes(q));
     });
-  }, [rows, search, roleFilter, statusFilter]);
+  }, [rows, search, roleFilter, statusFilter, deptFilter, isCompany]);
 
   const openCreate = () => {
     const f = blankForm(kind);
@@ -833,6 +968,12 @@ export default function AccountManager({ kind, title, subtitle, icon: Icon }) {
     if (keys.length === 0) {
       const defPerm = DEFAULT_PERMISSIONS[u.role] || DEFAULT_PERMISSIONS.employee;
       keys = permKeys(defPerm);
+    }
+    // For company accounts: sidebar always shows all default company pages regardless of DB
+    // so merge existing keys with company defaults to keep UI in sync with actual sidebar
+    if (u.role === "company") {
+      const companyDefaults = permKeys(DEFAULT_PERMISSIONS.company);
+      keys = [...new Set([...keys, ...companyDefaults])];
     }
     setModal({ mode: "edit", row: u, form: { ...fromRow(u), __keys: keys } });
   };
@@ -866,18 +1007,36 @@ export default function AccountManager({ kind, title, subtitle, icon: Icon }) {
     load();
   };
 
+  const [visiblePasswords, setVisiblePasswords] = useState(new Set());
+  const togglePw = (id) =>
+    setVisiblePasswords((prev) => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+
   const roleBadge = {
     admin: "bg-blue-100 text-blue-800", hod: "bg-indigo-100 text-indigo-800",
     employee: "bg-emerald-100 text-emerald-800", company: "bg-amber-100 text-amber-900",
   };
-  const cols = isCompany
-    ? ["Company", "Contact", "Phone", "City", "Username", "Status", ""]
-    : ["Name", "Role", "Department", "Phone", "Username", "Status", ""];
 
+  const userCols = ["Name", "Role", "Department", "Phone", "Email", "Username", "Password", "Status", "Actions"];
   const cell = "px-4 py-3 text-sm text-gray-700 whitespace-nowrap";
 
+  // Avatar color based on first char
+  const avatarColor = (name = "") => {
+    const colors = [
+      "bg-violet-100 text-violet-700", "bg-sky-100 text-sky-700",
+      "bg-emerald-100 text-emerald-700", "bg-amber-100 text-amber-700",
+      "bg-rose-100 text-rose-700", "bg-indigo-100 text-indigo-700",
+      "bg-teal-100 text-teal-700", "bg-orange-100 text-orange-700",
+    ];
+    return colors[(name.charCodeAt(0) || 0) % colors.length];
+  };
+
   return (
-    <div className="max-w-6xl mx-auto">
+    <div className="max-w-7xl mx-auto">
+      {/* Header */}
       <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-3">
           <div className="p-2.5 rounded-xl bg-indigo-50 text-indigo-600"><Icon className="w-6 h-6" /></div>
@@ -887,11 +1046,12 @@ export default function AccountManager({ kind, title, subtitle, icon: Icon }) {
           </div>
         </div>
         <button onClick={openCreate}
-          className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-indigo-600 text-white text-sm font-semibold hover:bg-indigo-700">
+          className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-indigo-600 text-white text-sm font-semibold hover:bg-indigo-700 shadow-sm shadow-indigo-200">
           <Plus className="w-4 h-4" /> {isCompany ? "Add Company" : "Add User"}
         </button>
       </div>
 
+      {/* Filters */}
       <div className="mb-4 flex flex-wrap items-center gap-2">
         <div className="relative flex-1 min-w-[200px]">
           <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
@@ -905,6 +1065,146 @@ export default function AccountManager({ kind, title, subtitle, icon: Icon }) {
             <option value="admin">Admin</option>
             <option value="hod">HOD</option>
           </select>
+        )}
+        {!isCompany && (
+          <div className="relative" ref={filterDeptRef}>
+            <button
+              type="button"
+              onClick={() => { setDeptDropOpen((v) => !v); setAddingFilterDept(false); }}
+              className={`${inputCls} !w-auto inline-flex items-center gap-2 min-w-[160px] justify-between`}
+            >
+              <span className={deptFilter === "all" ? "text-gray-500" : "text-gray-900 font-medium"}>
+                {deptFilter === "all" ? "All departments" : deptFilter}
+              </span>
+              <svg className={`w-4 h-4 text-gray-400 transition-transform shrink-0 ${deptDropOpen ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+            </button>
+
+            {deptDropOpen && (
+              <div className="absolute z-50 left-0 mt-1 w-56 bg-white border border-gray-200 rounded-xl shadow-xl overflow-hidden">
+                {/* All departments option */}
+                <button
+                  type="button"
+                  onClick={() => { setDeptFilter("all"); setDeptDropOpen(false); }}
+                  className={`w-full px-3.5 py-2.5 text-sm text-left transition ${deptFilter === "all" ? "bg-indigo-50 text-indigo-700 font-semibold" : "text-gray-700 hover:bg-gray-50"}`}
+                >
+                  All departments
+                </button>
+
+                <div className="border-t border-gray-100" />
+
+                {/* Department list with delete */}
+                <div className="max-h-52 overflow-y-auto">
+                  {[...new Set([
+                    ...departments.map((d) => d.name),
+                    ...rows.map((u) => u.dept?.name || u.department).filter(Boolean),
+                  ])].sort().map((name) => {
+                    const deptObj = departments.find((d) => d.name === name);
+                    return (
+                      <div
+                        key={name}
+                        className={`flex items-center justify-between gap-1 px-3.5 py-2 transition ${deptFilter === name ? "bg-indigo-50" : "hover:bg-gray-50"}`}
+                      >
+                        <button
+                          type="button"
+                          onClick={() => { setDeptFilter(name); setDeptDropOpen(false); }}
+                          className={`flex-1 text-sm text-left ${deptFilter === name ? "text-indigo-700 font-semibold" : "text-gray-700"}`}
+                        >
+                          {name}
+                        </button>
+                        {deptObj && (
+                          <button
+                            type="button"
+                            disabled={deletingDeptId === deptObj.id}
+                            title="Delete department"
+                            onClick={async (e) => {
+                              e.stopPropagation();
+                              if (!window.confirm(`Delete department "${name}"?`)) return;
+                              setDeletingDeptId(deptObj.id);
+                              try {
+                                await deleteDepartment(deptObj.id);
+                                setDepartments((prev) => prev.filter((d) => d.id !== deptObj.id));
+                                if (deptFilter === name) setDeptFilter("all");
+                                setToast(`"${name}" deleted.`);
+                              } catch (ex) {
+                                setToast(ex.message || "Delete failed.");
+                              } finally {
+                                setDeletingDeptId(null);
+                              }
+                            }}
+                            className="shrink-0 p-1 rounded-md text-gray-400 hover:text-red-500 hover:bg-red-50 transition"
+                          >
+                            {deletingDeptId === deptObj.id
+                              ? <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                              : <Trash2 className="w-3.5 h-3.5" />}
+                          </button>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+
+                <div className="border-t border-gray-100" />
+
+                {/* Add new department */}
+                {!addingFilterDept ? (
+                  <button
+                    type="button"
+                    onClick={() => { setAddingFilterDept(true); setNewFilterDeptName(""); }}
+                    className="w-full px-3.5 py-2.5 text-sm text-left text-indigo-600 font-semibold hover:bg-indigo-50 flex items-center gap-2 transition"
+                  >
+                    <Plus className="w-4 h-4" /> Add New Department
+                  </button>
+                ) : (
+                  <div className="p-2.5 space-y-2">
+                    <input
+                      autoFocus
+                      className="w-full px-3 py-2 text-sm border border-indigo-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500/25"
+                      placeholder="Department name…"
+                      value={newFilterDeptName}
+                      onChange={(e) => setNewFilterDeptName(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Escape") setAddingFilterDept(false);
+                        if (e.key === "Enter") e.currentTarget.closest("div").querySelector("button[data-save]")?.click();
+                      }}
+                    />
+                    <div className="flex gap-1.5">
+                      <button
+                        data-save
+                        type="button"
+                        disabled={savingFilterDept || !newFilterDeptName.trim()}
+                        onClick={async () => {
+                          if (!newFilterDeptName.trim()) return;
+                          setSavingFilterDept(true);
+                          try {
+                            const saved = await createDepartment({ name: newFilterDeptName.trim() });
+                            setDepartments((prev) => [...prev, saved].sort((a, b) => a.name.localeCompare(b.name)));
+                            setDeptFilter(saved.name);
+                            setAddingFilterDept(false);
+                            setDeptDropOpen(false);
+                            setToast(`"${saved.name}" added.`);
+                          } catch (ex) {
+                            setToast(ex.message || "Failed to add department.");
+                          } finally {
+                            setSavingFilterDept(false);
+                          }
+                        }}
+                        className="flex-1 px-3 py-1.5 rounded-lg text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 transition"
+                      >
+                        {savingFilterDept ? "Saving…" : "Save"}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setAddingFilterDept(false)}
+                        className="px-3 py-1.5 rounded-lg text-xs font-semibold text-gray-600 hover:bg-gray-100 transition"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
         )}
         <select className={`${inputCls} !w-auto`} value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
           <option value="all">All status</option>
@@ -927,55 +1227,139 @@ export default function AccountManager({ kind, title, subtitle, icon: Icon }) {
         </div>
       )}
 
-      <div className="bg-white border border-gray-100 rounded-2xl shadow-sm overflow-x-auto">
-        <table className="w-full text-left">
-          <thead className="bg-gray-50 text-[11px] uppercase tracking-wide text-gray-500">
-            <tr>{cols.map((c, i) => <th key={i} className="px-4 py-3 font-semibold">{c}</th>)}</tr>
-          </thead>
-          <tbody className="divide-y divide-gray-100">
-            {loading && rows.length === 0 ? (
-              <tr><td colSpan={cols.length} className="px-4 py-10 text-center text-sm text-gray-400">Loading…</td></tr>
-            ) : filtered.length === 0 ? (
-              <tr><td colSpan={cols.length} className="px-4 py-10 text-center text-sm text-gray-400">Nothing found.</td></tr>
-            ) : (
-              filtered.map((u) => (
-                <tr key={u.id} className="hover:bg-gray-50/70">
-                  <td className={`${cell} font-semibold text-gray-900`}>{isCompany ? u.company_name || u.name : u.name}</td>
-                  {isCompany ? (
-                    <>
-                      <td className={cell}>{u.contact_person || "—"}</td>
-                      <td className={cell}>{u.phone || "—"}</td>
-                      <td className={cell}>{u.city || "—"}</td>
-                    </>
-                  ) : (
-                    <>
-                      <td className={cell}>
-                        <span className={`px-2.5 py-0.5 rounded-full text-[11px] font-semibold capitalize ${roleBadge[u.role] || ""}`}>{u.role}</span>
-                      </td>
-                      <td className={cell}>{u.department || "—"}</td>
-                      <td className={cell}>{u.phone || "—"}</td>
-                    </>
-                  )}
-                  <td className={`${cell} font-mono text-xs`}>{u.username}</td>
-                  <td className={cell}>
-                    <button onClick={() => toggleActive(u)} title="Toggle active"
-                      className={`inline-flex items-center gap-1.5 text-xs font-semibold ${u.is_active ? "text-emerald-600" : "text-gray-400"}`}>
-                      {u.is_active ? <ToggleRight className="w-6 h-6" /> : <ToggleLeft className="w-6 h-6" />}
-                      {u.is_active ? "Active" : "Inactive"}
-                    </button>
-                  </td>
-                  <td className={`${cell} text-right`}>
-                    <button onClick={() => openEdit(u)}
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-indigo-700 bg-indigo-50 hover:bg-indigo-100">
-                      <Pencil className="w-3.5 h-3.5" /> Edit
-                    </button>
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
+      {/* ── TABLE (company + user) ── */}
+      {(() => {
+        const isLoading = loading && rows.length === 0;
+        const isEmpty = !isLoading && filtered.length === 0;
+        const companyCols = ["#", "Company", "Contact Person", "Phone / WhatsApp", "Email", "City", "State", "Industry", "GST No.", "Website", "Username", "Password", "Status", ""];
+        const cols = isCompany ? companyCols : userCols;
+
+        return (
+          <div className="rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left min-w-max">
+                <thead>
+                  <tr className="bg-gray-50 border-b border-gray-100">
+                    {cols.map((c, i) => (
+                      <th key={i} className={`px-4 py-3 text-[11px] font-semibold uppercase tracking-wider text-gray-500 ${c === "" ? "w-24" : ""}`}>
+                        {c}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-50">
+                  {isLoading ? (
+                    <tr><td colSpan={cols.length} className="px-4 py-12 text-center text-sm text-gray-400">Loading…</td></tr>
+                  ) : isEmpty ? (
+                    <tr><td colSpan={cols.length} className="px-4 py-12 text-center text-sm text-gray-400">Nothing found.</td></tr>
+                  ) : filtered.map((u, idx) => {
+                    const pwVisible = visiblePasswords.has(u.id);
+                    const displayName = isCompany ? (u.company_name || u.name) : u.name;
+                    return (
+                      <tr key={u.id} className="hover:bg-indigo-50/30 transition-colors group">
+                        {/* Serial */}
+                        {isCompany && (
+                          <td className="px-4 py-3 text-xs font-mono text-gray-400 w-10">{idx + 1}</td>
+                        )}
+
+                        {/* Name */}
+                        <td className="px-4 py-3">
+                          <div className="flex items-center gap-2.5">
+                            <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 text-xs font-bold ${avatarColor(displayName)}`}>
+                              {(displayName || "?").charAt(0).toUpperCase()}
+                            </div>
+                            <span className="text-sm font-semibold text-gray-900 whitespace-nowrap">{displayName || "—"}</span>
+                          </div>
+                        </td>
+
+                        {isCompany ? (
+                          <>
+                            <td className="px-4 py-3 whitespace-nowrap">
+                              {u.contact_person
+                                ? <span className="text-sm font-medium text-gray-800">{u.contact_person}</span>
+                                : <span className="text-gray-300">—</span>}
+                            </td>
+                            <td className="px-4 py-3 whitespace-nowrap">
+                              {u.phone
+                                ? <a href={`tel:${u.phone}`} className="text-sm text-indigo-600 hover:underline font-mono">{u.phone}</a>
+                                : <span className="text-gray-300">—</span>}
+                            </td>
+                            <td className="px-4 py-3 text-sm text-indigo-600 whitespace-nowrap max-w-[180px]">
+                              <span className="truncate block">{u.email || <span className="text-gray-300">—</span>}</span>
+                            </td>
+                            <td className="px-4 py-3 text-sm text-gray-600 whitespace-nowrap">{u.city || <span className="text-gray-300">—</span>}</td>
+                            <td className="px-4 py-3 text-sm text-gray-600 whitespace-nowrap">{u.state || <span className="text-gray-300">—</span>}</td>
+                            <td className="px-4 py-3 text-sm text-gray-600 whitespace-nowrap">{u.industry || <span className="text-gray-300">—</span>}</td>
+                            <td className="px-4 py-3 whitespace-nowrap">
+                              {u.gst_number
+                                ? <span className="text-xs font-mono px-2 py-0.5 rounded-md bg-orange-50 text-orange-700 border border-orange-100">{u.gst_number}</span>
+                                : <span className="text-gray-300 text-sm">—</span>}
+                            </td>
+                            <td className="px-4 py-3 whitespace-nowrap max-w-[160px]">
+                              {u.website
+                                ? <a href={u.website.startsWith("http") ? u.website : `https://${u.website}`} target="_blank" rel="noopener noreferrer" className="text-xs text-indigo-500 hover:underline truncate block max-w-[150px]">{u.website.replace(/^https?:\/\//, "")}</a>
+                                : <span className="text-gray-300 text-sm">—</span>}
+                            </td>
+                          </>
+                        ) : (
+                          <>
+                            <td className="px-4 py-3 whitespace-nowrap">
+                              <span className={`px-2.5 py-0.5 rounded-full text-[11px] font-semibold capitalize ${roleBadge[u.role] || ""}`}>{u.role}</span>
+                            </td>
+                            <td className="px-4 py-3 text-sm text-gray-600 whitespace-nowrap">{u.dept?.name || u.department || <span className="text-gray-300">—</span>}</td>
+                            <td className="px-4 py-3 text-sm text-gray-600 whitespace-nowrap">{u.phone || <span className="text-gray-300">—</span>}</td>
+                            <td className="px-4 py-3 text-sm text-indigo-600 whitespace-nowrap max-w-[180px]">
+                              <span className="truncate block">{u.email || <span className="text-gray-300">—</span>}</span>
+                            </td>
+                          </>
+                        )}
+
+                        {/* Username */}
+                        <td className="px-4 py-3 whitespace-nowrap">
+                          <span className="text-xs font-mono bg-gray-50 text-gray-700 px-2 py-1 rounded-md border border-gray-100">{u.username || "—"}</span>
+                        </td>
+
+                        {/* Password */}
+                        <td className="px-4 py-3 whitespace-nowrap">
+                          <div className="flex items-center gap-1.5">
+                            <span className={`text-xs font-mono ${pwVisible ? "text-gray-800" : "text-gray-400 tracking-widest"}`}>
+                              {u.password ? (pwVisible ? u.password : "••••••••") : "—"}
+                            </span>
+                            {u.password && (
+                              <button type="button" onClick={() => togglePw(u.id)}
+                                className="text-gray-400 hover:text-indigo-500 transition shrink-0"
+                                title={pwVisible ? "Hide" : "Show"}>
+                                {pwVisible ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                              </button>
+                            )}
+                          </div>
+                        </td>
+
+                        {/* Status */}
+                        <td className="px-4 py-3 whitespace-nowrap">
+                          <button onClick={() => toggleActive(u)} title="Toggle active"
+                            className={`inline-flex items-center gap-1 text-xs font-semibold transition ${u.is_active ? "text-emerald-600 hover:text-emerald-700" : "text-gray-400 hover:text-gray-600"}`}>
+                            {u.is_active ? <ToggleRight className="w-5 h-5" /> : <ToggleLeft className="w-5 h-5" />}
+                            {u.is_active ? "Active" : "Inactive"}
+                          </button>
+                        </td>
+
+                        {/* Edit */}
+                        <td className="px-4 py-3 whitespace-nowrap text-right">
+                          <button onClick={() => openEdit(u)}
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-indigo-700 bg-white hover:bg-indigo-50 transition border border-indigo-100 shadow-sm">
+                            <Pencil className="w-3.5 h-3.5" /> Edit
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        );
+      })()}
       <p className="mt-2 text-xs text-gray-400">{filtered.length} of {rows.length} shown</p>
 
       {modal && (
@@ -987,6 +1371,8 @@ export default function AccountManager({ kind, title, subtitle, icon: Icon }) {
           existing={rows}
           onClose={() => setModal(null)}
           onSaved={onSaved}
+          departments={departments}
+          onDeptAdded={(saved) => setDepartments((prev) => [...prev, saved].sort((a, b) => a.name.localeCompare(b.name)))}
         />
       )}
     </div>

@@ -68,58 +68,25 @@ export const notify = (promise) => {
 };
 
 // ---------------------------------------------------------------------------
-// Business events. Body variable order MUST match the approved template's
-// {{1}}, {{2}}... order - the exact template texts live in
-// scripts/submit-whatsapp-templates.mjs (single source of truth).
-// No URL buttons: the portal link is part of each template's fixed text.
+// Active templates — variable order MUST match approved Meta template exactly.
 // ---------------------------------------------------------------------------
 
-// Event 1: Order received -> client
-// Template vars: {{1}}=party_name {{2}}=type_of_work {{3}}=payment_type {{4}}=quotation_no {{5}}=customer_id {{6}}=password
+// Order received -> client
+// Template: "Dear {{1}}, ... Type of Work: {{2}} ... Payment Type: {{3}} ... Quotation No.: {{4}} ... Customer ID: {{5}} ... Password: {{6}}"
 export const sendOrderReceivedNotification = ({ clientPhone, clientName, typeOfWork, paymentType, quotationNo, loginId, password }) =>
   sendWhatsAppTemplateMessage(clientPhone, "order_received_v1", [
     body(clientName, typeOfWork, paymentType, quotationNo, loginId, password),
   ]);
 
-// Event 2: Task assigned -> employee
-export const sendTaskAssignmentNotification = ({ employeePhone, employeeName, taskNo, companyName, systemName, typeOfWork, priority, dueDate, assignedBy, taskDetails }) =>
-  sendWhatsAppTemplateMessage(employeePhone, "task_assigned_v1", [
-    body(employeeName, taskNo, companyName, systemName, typeOfWork, priority, dueDate, assignedBy, taskDetails),
-  ]);
-
-// Event 3: Tester / QA assigned
-export const sendTesterAssignmentNotification = ({ testerPhone, testerName, testerType, testingNo, companyName, systemName, developerName, systemLink, testDueDate, remarks }) =>
-  sendWhatsAppTemplateMessage(testerPhone, "tester_assigned_v1", [
-    body(testerName, testerType, testingNo, companyName, systemName, developerName, systemLink, testDueDate, remarks),
-  ]);
-
-// Event 4: Approval for delivery -> client
-export const sendApprovalForDeliveryNotification = ({ clientPhone, clientName, systemName, taskNo, typeOfWork, deliveredBy, systemLink, loginId, deliveryDate }) =>
-  sendWhatsAppTemplateMessage(clientPhone, "delivery_approval_v1", [
-    body(clientName, systemName, taskNo, typeOfWork, deliveredBy, systemLink, loginId, deliveryDate),
-  ]);
-
-// Event 5A: New system request -> approver
-export const sendNewSystemApprovalRequest = ({ approverPhone, clientName, systemName, department, priority, neededBy, purpose, requestedBy }) =>
-  sendWhatsAppTemplateMessage(approverPhone, "new_system_request_v1", [
-    body(clientName, systemName, department, priority, neededBy, purpose, requestedBy),
-  ]);
-
-// Event 5B: New system approved -> client
-export const sendNewSystemConfirmedNotification = ({ clientPhone, clientName, systemName, department, priority, neededBy, approvedBy, remarks, approvedOn }) =>
-  sendWhatsAppTemplateMessage(clientPhone, "new_system_confirmed_v1", [
-    body(clientName, systemName, department, priority, neededBy, approvedBy, remarks, approvedOn),
-  ]);
-
-// Event 6: Checklist task assigned -> doer
-// Template vars: {{1}}=name {{2}}=assigned_by {{3}}=task {{4}}=description {{5}}=scheduled_days {{6}}=time
+// Checklist task assigned -> doer
+// Template: "Hello {{1}}, {{2}} has assigned ... Task: {{3}} ... Description: {{4}} ... Scheduled Days: {{5}} ... Time: {{6}}"
 export const sendChecklistReminderNotification = ({ employeePhone, employeeName, assignedBy, taskName, details, days, dueTime }) =>
   sendWhatsAppTemplateMessage(employeePhone, "checklist_assigned_v1", [
     body(employeeName, assignedBy, taskName, details, days, dueTime),
   ]);
 
-// Event 7: Task delegation -> doer
-// Template vars: {{1}}=name {{2}}=assigned_by {{3}}=task {{4}}=target_date {{5}}=target_time
+// Delegation assigned -> doer
+// Template: "Hello {{1}}, {{2}} has assigned a delegation ... Task: {{3}} ... Target Date: {{4}} ... Target Time: {{5}}"
 export const sendTaskDelegationNotification = ({ delegatedToPhone, delegatedToName, delegatedByName, taskDetails, targetDate, targetTime }) =>
   sendWhatsAppTemplateMessage(delegatedToPhone, "task_delegated_v1", [
     body(delegatedToName, delegatedByName, taskDetails, targetDate, targetTime),

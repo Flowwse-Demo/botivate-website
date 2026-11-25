@@ -6,6 +6,16 @@
 import supabase from "../supabaseClient";
 import { requestCountsRefresh } from "../utils/sidebarCounts";
 import { safeToISO } from "../utils/dateFormatters";
+import {
+  notifyTaskAssigned,
+  notifyOrderReceived,
+  notifyTestersAssigned,
+  notifyDeliveryApproval,
+  notifyNewSystemRequest,
+  notifyNewSystemApproved,
+  notifyDelegation,
+  notifyChecklistAssigned,
+} from "./whatsappEvents";
 
 // Clean up any deprecated localStorage task/entity overrides so browser stays strictly synced with Supabase DB
 try {
@@ -360,6 +370,7 @@ export const createEmplTask = async (payload) => {
 
   const { data, error } = await supabase.from("user_tasks").insert([row]).select(USER_TASKS_SELECT);
   if (error) throw error;
+  if (data?.[0]?.assigned_member_1) notifyTaskAssigned(data[0], data[0].assigned_member_1);
   return data?.[0];
 };
 export const createUserTask = createEmplTask;
@@ -367,8 +378,16 @@ export const createUserTask = createEmplTask;
 export const updateEmplTask = async (id, payload) => {
   const table = await taskTableOf(id);
   const select = table === "task_subtasks" ? subtaskSelect(USER_TASKS_SELECT) : USER_TASKS_SELECT;
+  let prevMember = null;
+  if (payload && payload.assigned_member_1) {
+    const { data: prev } = await supabase.from(table).select("assigned_member_1").eq("id", id).maybeSingle();
+    prevMember = prev?.assigned_member_1 ?? null;
+  }
   const { data, error } = await supabase.from(table).update(payload).eq("id", id).select(select);
   if (error) throw error;
+  if (payload?.assigned_member_1 && Number(payload.assigned_member_1) !== Number(prevMember) && data?.[0]) {
+    notifyTaskAssigned(data[0], payload.assigned_member_1);
+  }
   return table === "task_subtasks" && data?.[0] ? asSubtask(data[0]) : data?.[0];
 };
 export const updateUserTask = updateEmplTask;
@@ -479,6 +498,7 @@ export const forwardEmplTask = async (taskId, optsOrCurrentUserId = {}, maybeNex
     .select(table === "task_subtasks" ? subtaskSelect(USER_TASKS_SELECT) : USER_TASKS_SELECT);
   if (error) throw error;
   if (!data?.length) throw new Error("Forward failed.");
+  notifyTaskAssigned(data[0], target);
   return table === "task_subtasks" ? asSubtask(data[0]) : data[0];
 };
 export const forwardUserTask = forwardEmplTask;
@@ -1090,10 +1110,12 @@ export const createDelegatedTask = async ({
       .select()
       .single();
     if (fallbackRes.error) throw fallbackRes.error;
+    notifyDelegation(fallbackRes.data);
     return fallbackRes.data;
   }
 
   if (error) throw error;
+  notifyDelegation(data);
   return data;
 };
 
@@ -1244,10 +1266,12 @@ export const createChecklistTask = async (payload) => {
       .single();
 
     if (fallbackRes.error) throw fallbackRes.error;
+    notifyChecklistAssigned({ ...payload, ...fallbackRes.data });
     return fallbackRes.data;
   }
 
   if (error) throw error;
+  notifyChecklistAssigned({ ...payload, ...data });
   return data;
 };
 
@@ -1555,6 +1579,7 @@ export const createOrder = async (payload) => {
     }
   }
 
+  notifyOrderReceived(data);
   return data;
 };
 
@@ -2353,6 +2378,7 @@ export const assignTester = async (row, { testers, expectedDate, remarks, assign
     }
   }
 
+  notifyTestersAssigned(row, testers, expectedDate, remarks);
   return res;
 };
 
@@ -2420,7 +2446,24 @@ const copyStageResult = async (stage, row, parts = [], { status, remarks, byName
  * Frontend and Backend are Done). Pending -> stays in the tester pending list.
  * Issue -> history + new task for the maker.
  */
-export const submitTesterResult = (row, opts) => submitStageResult("test", row, opts);
+export const submitTesterResult = async (row, opts) => {
+  const childId = await submitStageResult("test", row, opts);
+  if (opts?.status === "Done") {
+    (async () => {
+      try {
+        const group = groupOf(row);
+        const delivery = groupDeliveries(await fetchTaskTesting()).find((d) => groupOf(d) === group);
+        if (delivery && testingDone(delivery)) {
+          const cur = currentRound(delivery);
+          if ((cur.approval_status || "Pending") === "Pending") notifyDeliveryApproval(cur);
+        }
+      } catch (e) {
+        console.warn("[WhatsApp] delivery approval check skipped:", e?.message || e);
+      }
+    })();
+  }
+  return childId;
+};
 
 /** Deliveries whose Frontend and Backend tests are both Done; each has its testing rows in `parts`. */
 export const fetchApprovalRows = async () =>
@@ -2773,6 +2816,7 @@ export const createSystemRequest = async ({ companyId, name, department, descrip
     },
   ]);
   if (error) throw error;
+  notifyNewSystemRequest({ companyId, requestedBy, name: String(name).trim(), department, description, priority, neededBy });
 };
 
 export const fetchSystemRequests = async () => {
@@ -2829,6 +2873,7 @@ export const approveSystemRequest = async (req, { approverId, remarks }) => {
     })
     .eq("id", req.id);
   if (error) throw error;
+  notifyNewSystemApproved(req, { approverId, remarks });
 };
 
 export const rejectSystemRequest = async (req, { approverId, remarks }) => {

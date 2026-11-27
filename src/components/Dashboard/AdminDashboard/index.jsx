@@ -83,6 +83,8 @@ export default function AdminDashboard({
       return null;
     }
   });
+
+  console.log("selected users : ", selectedUser);
   const [selectedSystem, setSelectedSystem] = useState(() => {
     try {
       return JSON.parse(sessionStorage.getItem("selectedSystem") || "null");
@@ -259,6 +261,7 @@ export default function AdminDashboard({
       // change: "+2 this month",
       trend: "up",
       loading: loading,
+      tab: "pending-tasks",
     },
     {
       label: "Active Tasks",
@@ -268,6 +271,7 @@ export default function AdminDashboard({
       // change: "+5 today",
       trend: "up",
       loading: loading,
+      tab: "pending-tasks",
     },
     {
       label: "Completed",
@@ -277,6 +281,7 @@ export default function AdminDashboard({
       // change: "+12% vs yesterday",
       trend: "up",
       loading: loading,
+      tab: "completed-tasks",
     },
     {
       label: "Pending Issues",
@@ -286,6 +291,7 @@ export default function AdminDashboard({
       // change: "-2 resolved",
       trend: "down",
       loading: loading,
+      tab: "troubleshoot",
     },
   ];
 
@@ -298,7 +304,8 @@ export default function AdminDashboard({
     setShowUserModal(true);
     setUserModalTab("pending");
   };
-
+  console.log("Selected user user : ", user);
+  console.log("SelectedUser  for taken from : ", selectedUser)
   const isTabPermitted = () => {
     if (!userRole) return true;
     const role = userRole.toLowerCase();
@@ -433,6 +440,7 @@ export default function AdminDashboard({
             companyData={companyData}
             userFilterData={userFilterData}
             supabaseData={supabaseData}
+            setActiveTab={setActiveTab}
           />
         );
       case "assign-task": {
@@ -600,6 +608,7 @@ export default function AdminDashboard({
             companyData={companyData}
             userFilterData={userFilterData}
             supabaseData={supabaseData}
+            setActiveTab={setActiveTab}
           />
         );
     }

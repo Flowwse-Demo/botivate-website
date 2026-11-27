@@ -43,9 +43,9 @@ const isNA = (val) => {
   );
 };
 
-export function TaskAccessCell({ task }) {
+export function TaskAccessCell({ task, hideGitLink = false }) {
   const rawAppLink = task.linkOfSystem || "";
-  const rawGitLink = task.githubLink || "";
+  const rawGitLink = hideGitLink ? "" : task.githubLink || "";
   const rawLoginId = task.systemLoginId || "";
   const rawPassword = task.systemPassword || "";
   const [showPassword, setShowPassword] = useState(false);

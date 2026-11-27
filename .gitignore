@@ -76,6 +76,9 @@ verify_migration.js
 wipe_safety_review.js
 wipe_target_tables.js
 
+# Non-reusable / unused pages (not imported anywhere)
+src/components/Dashboard/DeveloperStagePage/
+
 # Root-level debug screenshots / media
 /*.png
 /*.jpg

@@ -16,11 +16,15 @@ export default function TaskUpdateModal({ task, userId, userName, onClose, onSav
   const isSystemType = ORDER_SYSTEM_WORK_TYPES.includes(typeOfWork);
   const isNewSystem = /new\s*system/i.test(typeOfWork);
   const isExistingSystem = /existing\s*system/i.test(typeOfWork);
+  const isErrorReceived = /error\s*received/i.test(typeOfWork);
+  // Error Received behaves like Existing System here: it's work on an already-delivered
+  // system, so show link / github / id / pass and prefill them from the system's record.
+  const isExistingLike = isExistingSystem || isErrorReceived;
   const [status, setStatus] = useState("");
   const [systemLink, setSystemLink] = useState(task.linkOfSystem || "");
   const [githubLink, setGithubLink] = useState(task.githubLink || "");
-  const [loginId, setLoginId] = useState(isExistingSystem ? (task.systemLoginId || "") : "");
-  const [password, setPassword] = useState(isExistingSystem ? (task.systemPassword || "") : "");
+  const [loginId, setLoginId] = useState(isExistingLike ? (task.systemLoginId || "") : "");
+  const [password, setPassword] = useState(isExistingLike ? (task.systemPassword || "") : "");
   const [expectedDate, setExpectedDate] = useState("");
   const [remarks, setRemarks] = useState("");
   const [saving, setSaving] = useState(false);
@@ -29,7 +33,7 @@ export default function TaskUpdateModal({ task, userId, userName, onClose, onSav
   // For Existing System: prefill from the latest task_testing record for this system so
   // the user doesn't retype link / github / id / pass that were saved on a prior delivery.
   useEffect(() => {
-    if (!isExistingSystem) return;
+    if (!isExistingLike) return;
     const systemId = task.systemId || task.system_id;
     if (!systemId) return;
     let cancelled = false;
@@ -50,7 +54,7 @@ export default function TaskUpdateModal({ task, userId, userName, onClose, onSav
     return () => {
       cancelled = true;
     };
-  }, [isExistingSystem, task.systemId, task.system_id]);
+  }, [isExistingLike, task.systemId, task.system_id]);
 
   const handleSave = async () => {
     setError("");
@@ -60,7 +64,7 @@ export default function TaskUpdateModal({ task, userId, userName, onClose, onSav
         if (!systemLink.trim()) return setError("System Link is required.");
         if (!loginId.trim()) return setError("Id is required.");
         if (!password.trim()) return setError("Pass is required.");
-      } else if (isExistingSystem) {
+      } else if (isExistingLike) {
         if (!loginId.trim()) return setError("Id is required.");
         if (!password.trim()) return setError("Pass is required.");
       }
@@ -84,7 +88,7 @@ export default function TaskUpdateModal({ task, userId, userName, onClose, onSav
             madeByName: userName,
           });
           requestCountsRefresh({ "pending-tasks": -1, "assign-tester": 1 });
-        } else if (isNewSystem || isExistingSystem) {
+        } else if (isNewSystem || isExistingLike) {
           await completeTaskWithDelivery({
             task,
             systemLink: systemLink.trim(),
@@ -163,6 +167,7 @@ export default function TaskUpdateModal({ task, userId, userName, onClose, onSav
       <ReadOnlyField label="Task No" value={task.taskNo} />
       <ReadOnlyField label="Company Name" value={task.partyName} />
       <ReadOnlyField label="System Name" value={task.systemName} />
+      <ReadOnlyField label="Type of Work" value={typeOfWork} />
       <Field full label="Task Description">
         <textarea
           className={inputClass}
@@ -235,7 +240,7 @@ export default function TaskUpdateModal({ task, userId, userName, onClose, onSav
               </Field>
             </>
           )}
-          {isExistingSystem && (
+          {isExistingLike && (
             <>
               <Field full label="System Link">
                 <input

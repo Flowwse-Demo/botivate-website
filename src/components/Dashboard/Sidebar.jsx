@@ -35,9 +35,27 @@ import {
 const settingsChildIds = ["add-user", "add-company"]
 const orderChildIdsAll = ["order-list", "system-approvals", "assign-tester", "tester", "approval-delivery", "inform-customer"]
 
+// Valid pages reached only via in-app navigation / drill-down (buttons inside other
+// pages), so they never appear in the permission-filtered `visibleTabs` list. They are
+// exempt from the safety reset so a browser reload restores them instead of bouncing
+// the user back to the dashboard overview.
+const navOnlyTabs = [
+  "company-systems",
+  "system-tasks",
+  "company-tasks",
+  "company-profile",
+  "delegation-form",
+  "delegation-tasks",
+  "user-access",
+]
+
 const Sidebar = ({ activeTab, setActiveTab, onClose, isMobile, user, userFilterData, companyData }) => {
   const [userPermissions, setUserPermissions] = useState([])
   const [userInfo, setUserInfo] = useState(null)
+  // Permissions resolve asynchronously; until they do, visibleTabs is just the
+  // dashboard, so the safety reset must wait or it bounces every restored page
+  // back to the overview on reload.
+  const [permissionsLoaded, setPermissionsLoaded] = useState(false)
   const [delegationOpen, setDelegationOpen] = useState(false)
   const [tasksOpen, setTasksOpen] = useState(false)
   const [checklistOpen, setChecklistOpen] = useState(false)
@@ -216,7 +234,7 @@ const Sidebar = ({ activeTab, setActiveTab, onClose, isMobile, user, userFilterD
         "assign-tester", "tester", "approval-delivery", "order-list", "meeting", "holidays",
       ],
       employee: [
-        "dashboard", "assign-task", "pending-tasks", "completed-tasks", "checklist-assign", "checklist-pending", "delegation-tasks", "pc-page", "tester", "meeting", "holidays",
+        "dashboard", "assign-task", "pending-tasks", "completed-tasks", "troubleshoot", "checklist-pending", "tester", "ai-helper", "meeting",
       ],
       company: [
         "dashboard", "assign-task", "company-systems",
@@ -275,6 +293,7 @@ const Sidebar = ({ activeTab, setActiveTab, onClose, isMobile, user, userFilterD
 
     setUserInfo(userData)
     setUserPermissions(resolvePermissions(userData))
+    setPermissionsLoaded(true)
   }, [user, userFilterData, companyData])
 
   // Sync fresh permissions directly from users table and react to real-time edits
@@ -413,6 +432,9 @@ const Sidebar = ({ activeTab, setActiveTab, onClose, isMobile, user, userFilterD
           (pNorm === "completedtask" && (tabIdNorm === "completedtasks" || tabKeyNorm === "completedtasks")) ||
           (pNorm === "delegation" && (tabIdNorm === "delegationform" || tabIdNorm === "delegationtasks")) ||
           (pNorm === "checklist" && (tabIdNorm === "checklistassign" || tabIdNorm === "checklistpending")) ||
+          (pNorm === "checklistdelegation" && (tabIdNorm === "checklistassign" || tabIdNorm === "checklistpending")) ||
+          (pNorm === "checklistassign" && tabIdNorm === "checklistassign") ||
+          (pNorm === "checklistpending" && tabIdNorm === "checklistpending") ||
           (pNorm === "settings" && (tabIdNorm === "adduser" || tabIdNorm === "addcompany"))
         )
       })
@@ -443,11 +465,10 @@ const Sidebar = ({ activeTab, setActiveTab, onClose, isMobile, user, userFilterD
   // Safety reset: if the activeTab is not in the allowed visibleTabs list, reset it to "overview"
   // Exception: hidden tabs like "company-systems" that are accessed via navigation
   useEffect(() => {
-    const hiddenAllowedTabs = ["company-systems", "system-tasks"];
-    if (visibleTabs.length > 0 && !visibleTabs.some(tab => tab.id === activeTab) && !hiddenAllowedTabs.includes(activeTab)) {
+    if (permissionsLoaded && visibleTabs.length > 0 && !visibleTabs.some(tab => tab.id === activeTab) && !navOnlyTabs.includes(activeTab)) {
       setActiveTab("overview")
     }
-  }, [visibleTabs, activeTab, setActiveTab])
+  }, [permissionsLoaded, visibleTabs, activeTab, setActiveTab])
 
   useEffect(() => {
     if (
@@ -481,6 +502,12 @@ const Sidebar = ({ activeTab, setActiveTab, onClose, isMobile, user, userFilterD
       try {
         const c = await fetchPendingCounts({
           userId: userFilterData?.userId ?? userFilterData?.id ?? null,
+          userNames: [
+            userFilterData?.name,
+            userFilterData?.username,
+            user?.name,
+            user?.username,
+          ].filter(Boolean),
           seesAll: role === "admin" || role === "superadmin" || !!userFilterData?.isAdmin,
           withRequests: role === "superadmin",
         })

@@ -93,6 +93,8 @@ export default function AssignTaskForm({
     fetchSystemsForCompany,
   } = useDropdownData(userRole, currentUserId);
 
+  console.log("TakenFromUsers : ", takenFromUsers);
+
   // Company users always post against their own company/system list.
   useEffect(() => {
     if (userRole === "company" && companyData?.companyId) {
@@ -270,7 +272,9 @@ export default function AssignTaskForm({
   const validateForm = () => {
     const newErrors = {};
 
-    if (userRole === "admin" || userRole === "employee" || userRole === "hod" || userRole === "superadmin") {
+    // Every non-company role (admin, employee, hod, superadmin, and the
+    // "user" value that employees get normalized to) fills the member form.
+    if (userRole !== "company") {
       if (!formData.date) newErrors.date = "Date is required";
       if (!formData.takenFrom) newErrors.takenFrom = "Taken From is required";
       if (!formData.companyId && !formData.companyName?.trim()) {
@@ -367,7 +371,11 @@ export default function AssignTaskForm({
       for (const [index, task] of allTasks.entries()) {
         setUploadProgress(`Submitting task ${index + 1}...`);
 
-        if (userRole === "admin" || userRole === "employee") {
+        // Any non-company role submits a member task (taken_from is the dropdown
+        // selection). Employees arrive here as userRole "user" (see
+        // determineUserRole), so matching only "employee" would wrongly fall into
+        // the company branch and overwrite taken_from with the logged-in name.
+        if (userRole !== "company") {
           const companyId = toId(formData.companyId);
           if (!companyId) {
             throw new Error("Company is required.");

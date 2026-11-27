@@ -3737,10 +3737,26 @@ export default function TeamOverview({ userFilterData, userRole }) {
     return [...map.values()].sort((a, b) => a.name.localeCompare(b.name));
   }, [teams, selectedTeamId, isHod]);
 
+  // Members scoped to the currently selected department (ignores the
+  // active/inactive filter) so the Account dropdown counts reflect the department.
+  const deptScopedMembers = useMemo(() => {
+    if (selectedDeptId === "all") return members;
+    if (selectedDeptId === "no-dept") return members.filter((m) => !m.departmentId);
+    return members.filter((m) => String(m.departmentId) === String(selectedDeptId));
+  }, [members, selectedDeptId]);
+
   const activeCounts = useMemo(() => {
-    const active = members.filter((m) => m.isActive).length;
-    return { all: members.length, active, inactive: members.length - active };
-  }, [members]);
+    const active = deptScopedMembers.filter((m) => m.isActive).length;
+    return { all: deptScopedMembers.length, active, inactive: deptScopedMembers.length - active };
+  }, [deptScopedMembers]);
+
+  // Members scoped to the active/inactive filter (ignores the department)
+  // so department button counts reflect the selected account status.
+  const statusScopedMembers = useMemo(() => {
+    if (activeFilter === "active") return members.filter((m) => m.isActive);
+    if (activeFilter === "inactive") return members.filter((m) => !m.isActive);
+    return members;
+  }, [members, activeFilter]);
 
   const filteredMembers = useMemo(() => {
     let result = members;
@@ -3820,10 +3836,10 @@ export default function TeamOverview({ userFilterData, userRole }) {
               : "bg-white text-gray-600 border border-gray-200 hover:bg-gray-50"
           }`}
         >
-          All Departments ({members.length})
+          All Departments ({statusScopedMembers.length})
         </button>
         {departments.map((d) => {
-          const count = members.filter((m) => String(m.departmentId) === String(d.id)).length;
+          const count = statusScopedMembers.filter((m) => String(m.departmentId) === String(d.id)).length;
           if (count === 0) return null;
           return (
             <button
@@ -3841,7 +3857,7 @@ export default function TeamOverview({ userFilterData, userRole }) {
             </button>
           );
         })}
-        {members.some((m) => !m.departmentId) && (
+        {statusScopedMembers.some((m) => !m.departmentId) && (
           <button
             type="button"
             onClick={() => setSelectedDeptId("no-dept")}
@@ -3852,7 +3868,7 @@ export default function TeamOverview({ userFilterData, userRole }) {
             }`}
           >
             No Department
-            <span className="ml-1 opacity-70">({members.filter((m) => !m.departmentId).length})</span>
+            <span className="ml-1 opacity-70">({statusScopedMembers.filter((m) => !m.departmentId).length})</span>
           </button>
         )}
       </div>

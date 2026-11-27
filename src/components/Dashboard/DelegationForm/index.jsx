@@ -112,6 +112,16 @@ export default function DelegationForm({
     return () => { cancelled = true; };
   }, []);
 
+  // Default "Assigned by" to the logged-in user once the admin list is ready
+  // (only if they appear in the admin list and nothing is selected yet).
+  useEffect(() => {
+    if (assignedById) return;
+    if (currentUserId == null) return;
+    const me = adminUsers.find((u) => String(u.id) === String(currentUserId));
+    if (me) setAssignedById(String(me.id));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [adminUsers, currentUserId]);
+
   const filteredUsers = useMemo(() => {
     const q = personSearch.trim().toLowerCase();
     if (!q) return users;
@@ -309,7 +319,7 @@ export default function DelegationForm({
                 >
                   <span className={selectedAdmin ? "text-slate-800" : "text-slate-400"}>
                     {selectedAdmin
-                      ? `${selectedAdmin.name || selectedAdmin.username}${selectedAdmin.role ? ` · ${selectedAdmin.role}` : ""}`
+                      ? `${selectedAdmin.name || selectedAdmin.username}`
                       : loadingAdmins
                         ? "Loading admins…"
                         : "Select admin"}
@@ -392,7 +402,7 @@ export default function DelegationForm({
                 >
                   <span className={selectedPerson ? "text-slate-800" : "text-slate-400"}>
                     {selectedPerson
-                      ? `${selectedPerson.name || selectedPerson.username}${selectedPerson.role ? ` · ${selectedPerson.role}` : ""}`
+                      ? `${selectedPerson.name || selectedPerson.username}`
                       : loadingUsers
                         ? "Loading people…"
                         : "Select person"}

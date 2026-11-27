@@ -31,6 +31,40 @@ function fmtDate(value) {
   }
 }
 
+function fmtDateTime(value) {
+  if (!value) return "-"
+  try {
+    const d = new Date(value)
+    if (Number.isNaN(d.getTime())) return "-"
+    return d.toLocaleString("en-IN", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    })
+  } catch {
+    return "-"
+  }
+}
+
+function fmtDelay(value) {
+  if (!value) return "-"
+  try {
+    const expected = new Date(value)
+    if (Number.isNaN(expected.getTime())) return "-"
+    expected.setHours(0, 0, 0, 0)
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    const diffDays = Math.round((today - expected) / (1000 * 60 * 60 * 24))
+    if (diffDays > 0) return `${diffDays}d late`
+    if (diffDays === 0) return "Due today"
+    return "-"
+  } catch {
+    return "-"
+  }
+}
+
 export const exportToCSV = (type = "full", stats, reportsData, filteredData) => {
   let headers, rows
 
@@ -396,20 +430,44 @@ export const exportCompanyDistributionPDF = (stats, reportsData, dateRange) => {
       y += 3
       const rows = tasks.map((t) => [
         String(t.task_no || "-"),
-        String(t.employee_name_1 || t.team_member_name || "Unassigned").slice(0, 18),
-        String(t.system_name || "-").slice(0, 16),
-        fmtDate(t.expected_date_to_close || t.planned3),
-        String(t.status || "Pending"),
+        String(t.employee_name_1 || t.team_member_name || "Unassigned"),
+        String(t.system_name || "-"),
+        String(t.description_of_work || t.task_name || t.remarks || "-"),
+        fmtDateTime(t.planned3 || t.expected_date_to_close),
+        fmtDelay(t.planned3 || t.expected_date_to_close),
+        String(t.task_name || t.notes || t.type_of_work || "-"),
         String(t.priority || t.priority_in_customer || "Medium"),
       ])
       table(doc, {
         startY: y,
         margin: { left: margin, right: margin },
-        head: [["Task #", "Person", "System", "Expected", "Status", "Priority"]],
+        head: [
+          [
+            "Task ID",
+            "Person Name",
+            "System",
+            "Description",
+            "Planned Date & Time",
+            "Delay",
+            "Task Detail",
+            "Priority",
+          ],
+        ],
         body: rows,
         theme: "striped",
-        headStyles: { fillColor: [51, 65, 85], textColor: 255, fontSize: 7 },
-        bodyStyles: { fontSize: 7, cellPadding: 1.4 },
+        headStyles: { fillColor: [51, 65, 85], textColor: 255, fontSize: 6.5 },
+        bodyStyles: { fontSize: 6.5, cellPadding: 1.2 },
+        styles: { overflow: "linebreak" },
+        columnStyles: {
+          0: { cellWidth: 15 },
+          1: { cellWidth: 23 },
+          2: { cellWidth: 22 },
+          3: { cellWidth: 38 },
+          4: { cellWidth: 29 },
+          5: { cellWidth: 16, halign: "center" },
+          6: { cellWidth: 25 },
+          7: { cellWidth: 14, halign: "center" },
+        },
       })
       y = (doc.lastAutoTable?.finalY || y) + 8
     })

@@ -211,7 +211,7 @@ export const fetchTakenFromNames = async (excludeUserId = null) => {
     .eq("is_active", true)
     .in("role", ["admin", "employee"]);
   if (error) throw error;
-  const ALLOWED_EMPLOYEES = ["vikas", "dipak"];
+  const ALLOWED_EMPLOYEES = ["vikas", "dipak","digendra"];
   const filtered = (rows || []).filter((u) => {
     if (u.role === "admin") return true;
     const nameLower = (u.name || u.username || "").toLowerCase();
@@ -664,7 +664,8 @@ export const SIDEBAR_PAGE_OPTIONS = [
   { key: "troubleshoot", label: "Troubleshoot" },
   { key: "ai-helper", label: "AI System Consultant" },
   { key: "reports", label: "Reports" },
-  { key: "checklist-delegation", label: "Checklist & Delegation" },
+  { key: "checklist-assign", label: "Checklist & Delegation — Assign Task" },
+  { key: "checklist-pending", label: "Checklist & Delegation — Pending Task" },
   { key: "pc-page", label: "PC Page" },
   { key: "meeting", label: "Meeting (Training & SOP)" },
   { key: "holidays", label: "Holidays" },
@@ -2581,8 +2582,27 @@ export const fetchStageBySystem = async (companyId) => {
 };
 
 /** Pending item counts per pipeline stage for the sidebar badges (same rules as each stage's Pending tab). */
-export const fetchPendingCounts = async ({ userId = null, seesAll = false, withRequests = false, companyId = null } = {}) => {
+export const fetchPendingCounts = async ({ userId = null, seesAll = false, withRequests = false, companyId = null, userNames = [] } = {}) => {
   const counts = {};
+  const myNames = (Array.isArray(userNames) ? userNames : [userNames])
+    .filter(Boolean)
+    .map((n) => String(n).trim().toLowerCase());
+
+  // Delegated tasks feed two badges (the "Pending Task" total and the Delegation
+  // tab), so fetch them once and share the result.
+  const delegatedTasksP = fetchDelegatedTasks().catch(() => []);
+  // Pending delegated tasks scoped to the logged-in member (admins see all).
+  const scopedPendingDelegated = async () => {
+    const dt = (await delegatedTasksP).filter(
+      (t) => String(t.status || "").toLowerCase() !== "completed"
+    );
+    if (seesAll || !userId) return dt;
+    return dt.filter(
+      (t) =>
+        String(t.assigned_to) === String(userId) ||
+        String(t.assigned_by) === String(userId)
+    );
+  };
 
   // every badge is fetched at the same time, so the slowest query (not the sum of all) sets the delay
   const stageCounts = async () => {
@@ -2642,7 +2662,23 @@ export const fetchPendingCounts = async ({ userId = null, seesAll = false, withR
       wkStart.setDate(now.getDate() - diffMon);
       const wkEnd = new Date(wkStart);
       wkEnd.setDate(wkStart.getDate() + 6);
-      const currentWeekCalls = wk.filter((t) => {
+      // Members only see weekly calls assigned to them as the calling person
+      // (matched by id when available, else by name) — mirror the page scoping.
+      const scopedCalls = seesAll
+        ? wk
+        : wk.filter((t) => {
+            if (userId == null && myNames.length === 0) return true;
+            if (
+              userId != null &&
+              t.calling_person_id != null &&
+              String(t.calling_person_id) === String(userId)
+            ) {
+              return true;
+            }
+            const callerName = String(t.calling_person_name || "").trim().toLowerCase();
+            return callerName !== "" && myNames.includes(callerName);
+          });
+      const currentWeekCalls = scopedCalls.filter((t) => {
         if (String(t.status || "").toLowerCase() === "completed") return false;
         if (!t.occurrence_date) return true;
         const d = new Date(t.occurrence_date + "T00:00:00");
@@ -2650,8 +2686,17 @@ export const fetchPendingCounts = async ({ userId = null, seesAll = false, withR
         d.setHours(0, 0, 0, 0);
         return d >= wkStart && d <= wkEnd;
       });
+      // Checklist pending scoped to the member (admins see all) — mirror the page.
+      const pendingChecklist = cl.filter((t) => {
+        if (String(t.status || "").toLowerCase() === "completed") return false;
+        if (seesAll || !userId) return true;
+        return String(t.assigned_to ?? "") === String(userId);
+      });
+      // "Pending Task" badge = checklist + delegation + weekly calls (all pending).
+      const pendingDelegated = await scopedPendingDelegated();
       counts["checklist-pending"] =
-        cl.filter((t) => String(t.status || "").toLowerCase() !== "completed").length +
+        pendingChecklist.length +
+        pendingDelegated.length +
         currentWeekCalls.length;
     } catch {
       counts["checklist-pending"] = 0;
@@ -2660,11 +2705,7 @@ export const fetchPendingCounts = async ({ userId = null, seesAll = false, withR
 
   const delegationCounts = async () => {
     try {
-      let dt = await fetchDelegatedTasks();
-      dt = dt.filter((t) => String(t.status || "").toLowerCase() !== "completed");
-      if (!seesAll && userId) {
-        dt = dt.filter(t => String(t.assigned_to) === String(userId) || String(t.assigned_by) === String(userId));
-      }
+      const dt = await scopedPendingDelegated();
       counts["delegation-tasks"] = dt.length;
     } catch {
       counts["delegation-tasks"] = 0;

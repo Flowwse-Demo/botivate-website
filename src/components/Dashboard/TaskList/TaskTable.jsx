@@ -63,7 +63,7 @@ function cellStyle(key, type) {
   };
 }
 
-function renderCell(column, task, type) {
+function renderCell(column, task, type, isCompanyUser = false) {
   const key = column.key;
   const value = task[key];
 
@@ -71,7 +71,12 @@ function renderCell(column, task, type) {
     const tw = String(task.typeOfWork || "");
     const isSystemWork = /new\s*system/i.test(tw) || /existing\s*system/i.test(tw);
     if (type === "completed" || isSystemWork || task.systemLoginId || task.systemPassword) {
-      return <TaskAccessCell task={task} />;
+      return (
+        <TaskAccessCell
+          task={task}
+          hideGitLink={isCompanyUser && type === "completed"}
+        />
+      );
     }
     const isValNA = !value || /^(na|n\/a|null|undefined|—|-)$/i.test(String(value).trim());
     if (isValNA) return <span className="text-gray-400">—</span>;
@@ -372,7 +377,7 @@ export default function TaskTable({
             className={`${tdClass}${getFirstCellClass()}`}
             style={cellStyle(column.key, type)}
           >
-            {renderCell(column, task, type)}
+            {renderCell(column, task, type, isCompanyUser)}
           </td>
         ))}
 

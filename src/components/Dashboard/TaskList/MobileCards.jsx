@@ -237,7 +237,10 @@ export function TaskCard({
                                     <div className="mt-1 text-sm text-gray-900">
                                         {column.key === "linkOfSystem" ? (
                                             type === "completed" ? (
-                                                <TaskAccessCell task={task} />
+                                                <TaskAccessCell
+                                                    task={task}
+                                                    hideGitLink={isCompanyUser && type === "completed"}
+                                                />
                                             ) : task[column.key] ? (
                                                 <a
                                                     href={task[column.key]}

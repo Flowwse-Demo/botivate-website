@@ -787,6 +787,34 @@ function useChecklistPanel({ userRole, user, userFilterData }) {
     load();
   }, [load]);
 
+  // Who is logged in — employees/HOD users only see checklist tasks assigned to them;
+  // admin / superadmin keep the full list.
+  const session = useMemo(() => {
+    try {
+      return JSON.parse(sessionStorage.getItem("userSession") || "{}");
+    } catch {
+      return {};
+    }
+  }, []);
+  const currentUserId =
+    user?.id ||
+    user?.userId ||
+    userFilterData?.userId ||
+    userFilterData?.id ||
+    session.userId ||
+    session.id ||
+    null;
+  const role = (userRole || user?.role || user?.type || session.role || "").toLowerCase();
+  const seesAllChecklist = role === "admin" || role === "superadmin";
+
+  // Only the logged-in user's own tasks (unless they have full access)
+  const scopedRows = useMemo(() => {
+    if (seesAllChecklist || !currentUserId) return rows;
+    return rows.filter(
+      (r) => String(r.assigned_to ?? "") === String(currentUserId)
+    );
+  }, [rows, seesAllChecklist, currentUserId]);
+
   const currentAndNextDateRows = useMemo(() => {
     const now = new Date();
     const pad = (n) => String(n).padStart(2, "0");
@@ -794,12 +822,12 @@ function useChecklistPanel({ userRole, user, userFilterData }) {
     const tomorrow = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
     const tomorrowStr = `${tomorrow.getFullYear()}-${pad(tomorrow.getMonth() + 1)}-${pad(tomorrow.getDate())}`;
 
-    return rows.filter((r) => {
+    return scopedRows.filter((r) => {
       if (!r.occurrence_date) return true;
       const d = String(r.occurrence_date).slice(0, 10);
       return d === todayStr || d === tomorrowStr;
     });
-  }, [rows]);
+  }, [scopedRows]);
 
   const pending = useMemo(
     () =>
@@ -1097,7 +1125,7 @@ function isInCurrentWeek(dateStr) {
   return d >= monday && d <= sunday;
 }
 
-function useWeeklyPanel({onEscalate}) {
+function useWeeklyPanel({ userRole, user, userFilterData, onEscalate }) {
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -1123,9 +1151,64 @@ function useWeeklyPanel({onEscalate}) {
     load();
   }, [load]);
 
+  // Who is logged in — only admin / superadmin see every caller's weekly calls.
+  // Everyone else (employees/HOD/users) sees only the calls assigned to them as
+  // the calling person (matched by id when available, else by name).
+  const session = useMemo(() => {
+    try {
+      return JSON.parse(sessionStorage.getItem("userSession") || "{}");
+    } catch {
+      return {};
+    }
+  }, []);
+  const role = (userRole || user?.role || user?.type || session.role || "").toLowerCase();
+  const seesAllWeekly = role === "admin" || role === "superadmin";
+
+  const currentUserId =
+    user?.id ||
+    user?.userId ||
+    userFilterData?.userId ||
+    userFilterData?.id ||
+    session.userId ||
+    session.id ||
+    session.filterData?.userId ||
+    null;
+
+  const currentUserNames = useMemo(() => {
+    const candidates = [
+      userFilterData?.name,
+      userFilterData?.username,
+      user?.name,
+      user?.username,
+      session.filterData?.name,
+      session.name,
+      session.username,
+    ];
+    return candidates
+      .filter(Boolean)
+      .map((n) => String(n).trim().toLowerCase());
+  }, [userFilterData, user, session]);
+
+  // Only the logged-in caller's own weekly calls (unless they have full access)
+  const scopedRows = useMemo(() => {
+    if (seesAllWeekly) return rows;
+    if (!currentUserId && currentUserNames.length === 0) return rows;
+    return rows.filter((r) => {
+      if (
+        currentUserId != null &&
+        r.calling_person_id != null &&
+        String(r.calling_person_id) === String(currentUserId)
+      ) {
+        return true;
+      }
+      const callerName = String(r.calling_person_name || "").trim().toLowerCase();
+      return callerName !== "" && currentUserNames.includes(callerName);
+    });
+  }, [rows, seesAllWeekly, currentUserId, currentUserNames]);
+
   const currentWeekRows = useMemo(
-    () => rows.filter((r) => isInCurrentWeek(r.occurrence_date)),
-    [rows]
+    () => scopedRows.filter((r) => isInCurrentWeek(r.occurrence_date)),
+    [scopedRows]
   );
 
   const pending = useMemo(

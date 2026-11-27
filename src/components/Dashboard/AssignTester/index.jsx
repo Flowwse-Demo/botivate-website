@@ -136,6 +136,8 @@ function AssignTesterModal({ row, testers, assignedBy, onClose, onSaved }) {
                 className={inputClass}
                 value={testerIds[t] || ""}
                 disabled={!checked[t]}
+                searchable
+                searchPlaceholder={`Search ${t.toLowerCase()} tester...`}
                 onChange={(e) => {
                   const val = e.target.value;
                   setTesterIds((ids) => ({ ...ids, [t]: val }));

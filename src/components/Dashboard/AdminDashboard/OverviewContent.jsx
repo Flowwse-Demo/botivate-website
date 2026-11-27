@@ -16,6 +16,7 @@ export default function OverviewContent({
   companyData,
   userFilterData,
   supabaseData,
+  setActiveTab,
 }) {
   // Company filters state
   const [companyFilters, setCompanyFilters] = useState({
@@ -74,13 +75,31 @@ export default function OverviewContent({
           { 1: "lg:grid-cols-1", 2: "lg:grid-cols-2", 3: "lg:grid-cols-3" }[filteredStats.length] || "lg:grid-cols-4"
         }`}
       >
-        {filteredStats.map((stat, index) => (
+        {filteredStats.map((stat, index) => {
+          const clickable = !!stat.tab && typeof setActiveTab === "function";
+          const goToTab = () => {
+            if (clickable) setActiveTab(stat.tab);
+          };
+          return (
           <motion.div
             key={stat.label}
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: index * 0.1 }}
-            className="p-4 transition-shadow bg-white border border-gray-200 shadow-sm rounded-2xl hover:shadow-md"
+            onClick={goToTab}
+            role={clickable ? "button" : undefined}
+            tabIndex={clickable ? 0 : undefined}
+            onKeyDown={(e) => {
+              if (clickable && (e.key === "Enter" || e.key === " ")) {
+                e.preventDefault();
+                goToTab();
+              }
+            }}
+            className={`p-4 transition-shadow bg-white border border-gray-200 shadow-sm rounded-2xl hover:shadow-md ${
+              clickable
+                ? "cursor-pointer hover:border-indigo-300 focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                : ""
+            }`}
           >
             <div className="flex items-center justify-between mb-2">
               <div
@@ -109,9 +128,15 @@ export default function OverviewContent({
                   <div className="w-16 h-2 bg-gray-200 rounded animate-pulse"></div>
                 </div>
               )}
+              {clickable && !stat.loading && (
+                <p className="mt-2 text-xs font-medium text-indigo-600">
+                  View details →
+                </p>
+              )}
             </div>
           </motion.div>
-        ))}
+          );
+        })}
       </div>
 
       {/* Charts and Analytics — all logged-in roles */}
